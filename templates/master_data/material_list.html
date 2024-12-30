@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>原材料管理</h2>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <!-- 搜索框 -->
+        <form class="w-50 d-flex" method="get" action="">
+            <input type="text" id="searchMaterial" name="q" value="{{ query }}" class="form-control" placeholder="搜索原材料料号、名称或类别">
+            <button type="submit" class="btn btn-primary ms-2">搜索</button>
+        </form>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+            <i class="fas fa-plus"></i> 创建原材料
+        </button>
+    </div>
+
+    <!-- 原材料表格 -->
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>料号</th>
+                <th>名称</th>
+                <th>类别</th>
+                <th>供应商</th>
+                <th>单价</th>
+                <th>规格</th>
+                <th>颜色</th>
+                <th>客供/非客供</th>
+                <th>备注</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            {% for material in materials %}
+            <tr id="row{{ material.id }}">
+                <td>{{ material.material_number }}</td>
+                <td>{{ material.name }}</td>
+                <td>{{ material.category.name|default:"无" }}</td>
+                <td>{{ material.supplier.name|default:"无" }}</td>
+                <td>{{ material.unit_price }}</td>
+                <td>{{ material.capacity }}</td>
+                <td>{{ material.color }}</td>
+                <td>{{ material.get_customer_supply_display }}</td>
+                <td>{{ material.remark }}</td>
+                <td>
+                    <button class="btn btn-warning btn-sm edit-btn" data-id="{{ material.id }}">编辑</button>
+                    <button class="btn btn-danger btn-sm delete-btn" data-id="{{ material.id }}">删除</button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="9" class="text-center text-muted">暂无原材料记录</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- 分页导航 -->
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">
+                    上一页
+                </a>
+            </li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}">
+                    下一页
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+
+
+<!-- 创建/编辑原材料模态框 -->
+<div class="modal fade" id="createModal" tabindex="-1" aria-labelledby="createModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="materialForm">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createModalLabel">创建原材料</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <!-- 原材料名称 -->
+                        <div class="col-md-6">
+                            <label for="id_name" class="form-label">原材料名称</label>
+                            <input type="text" id="id_name" name="name" class="form-control" required>
+                        </div>
+                        <!-- 类别 -->
+                        <div class="col-md-6">
+                            <label for="id_category" class="form-label">类别</label>
+                            <select id="id_category" name="category" class="form-select">
+                                <option value="">请选择类别</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <!-- 新类别 -->
+                        <div class="col-md-6">
+                            <label for="newCategory" class="form-label">新类别（可选）</label>
+                            <input type="text" id="newCategory" name="new_category" class="form-control">
+                        </div>
+                        <!-- 供应商 -->
+                        <div class="col-md-6">
+                            <label for="id_supplier" class="form-label">供应商</label>
+                            <select id="id_supplier" name="supplier" class="form-select">
+                                <option value="">请选择供应商</option>
+                                {% for supplier in suppliers %}
+                                <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <!-- 单价 -->
+                        <div class="col-md-6">
+                            <label for="id_unit_price" class="form-label">单价</label>
+                            <input type="number" step="0.01" id="id_unit_price" name="unit_price" class="form-control" required>
+                        </div>
+                        <!-- 容量 -->
+                        <div class="col-md-6">
+                            <label for="id_capacity" class="form-label">规格</label>
+                            <input type="text" id="id_capacity" name="capacity" class="form-control">
+                        </div>
+                        <!-- 颜色 -->
+                        <div class="col-md-6">
+                            <label for="id_color" class="form-label">颜色</label>
+                            <input type="text" id="id_color" name="color" class="form-control">
+                        </div>
+                        <!-- 客供/非客供 -->
+                        <div class="col-md-6">
+                            <label for="id_customer_supply" class="form-label">客供/非客供</label>
+                            <select id="id_customer_supply" name="customer_supply" class="form-select">
+                                <option value="非客供">非客供</option>
+                                <option value="客供">客供</option>
+                            </select>
+                        </div>
+                        <!-- 工艺技术 -->
+                        <div class="col-md-12" style="display:none;">
+                            <label for="id_technology" class="form-label">工艺技术</label>
+                            <textarea id="id_technology" name="technology" class="form-control"></textarea>
+                        </div>
+                        <!-- 备注 -->
+                        <div class="col-md-12">
+                            <label for="id_remark" class="form-label">备注</label>
+                            <textarea id="id_remark" name="remark" class="form-control"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('materialForm');
+        const modalTitle = document.getElementById('createModalLabel');
+    
+        // 点击创建按钮时，重置表单并设置默认创建 URL
+        document.querySelector('button[data-bs-target="#createModal"]').addEventListener('click', function () {
+            form.reset(); // 重置表单内容
+            modalTitle.textContent = '创建原材料'; // 设置模态框标题
+            form.action = "{% url 'master_data:material_create' %}"; // 设置默认创建 URL
+        });
+    
+        // 点击编辑按钮时，加载数据并设置编辑 URL
+        document.querySelectorAll('.edit-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const id = this.dataset.id;
+    
+                // 请求后端获取原材料详情
+                fetch(`/master_data/materials/edit/${id}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // 填充表单数据
+                            document.getElementById('id_name').value = data.material.name;
+                            document.getElementById('id_unit_price').value = data.material.unit_price;
+                            document.getElementById('id_capacity').value = data.material.capacity || '';
+                            document.getElementById('id_color').value = data.material.color || '';
+                            document.getElementById('id_customer_supply').value = data.material.customer_supply || '非客供';
+                            document.getElementById('id_technology').value = data.material.technology || '';
+                            document.getElementById('id_remark').value = data.material.remark || '';
+    
+                            // 填充类别下拉框
+                            const categorySelect = document.getElementById('id_category');
+                            categorySelect.innerHTML = '<option value="">请选择类别</option>';
+                            data.categories.forEach(category => {
+                                categorySelect.innerHTML += `
+                                    <option value="${category.id}" ${category.id == data.material.category ? 'selected' : ''}>
+                                        ${category.name}
+                                    </option>`;
+                            });
+    
+                            // 填充供应商下拉框
+                            const supplierSelect = document.getElementById('id_supplier');
+                            supplierSelect.innerHTML = '<option value="">请选择供应商</option>';
+                            data.suppliers.forEach(supplier => {
+                                supplierSelect.innerHTML += `
+                                    <option value="${supplier.id}" ${supplier.id == data.material.supplier ? 'selected' : ''}>
+                                        ${supplier.name}
+                                    </option>`;
+                            });
+    
+                            // 设置模态框标题和表单操作 URL
+                            modalTitle.textContent = '编辑原材料';
+                            form.action = `/master_data/materials/edit/${id}/`; // 动态设置编辑 URL
+    
+                            // 显示模态框
+                            new bootstrap.Modal(document.getElementById('createModal')).show();
+                        } else {
+                            alert('加载失败');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('加载失败:', error);
+                        alert('加载失败，请检查网络或联系管理员');
+                    });
+            });
+        });
+    
+        // 表单提交处理
+        form.addEventListener('submit', function (e) {
+            e.preventDefault(); // 阻止默认提交行为
+            const formData = new FormData(this);
+    
+            fetch(form.action, { // 动态提交到创建或编辑的 URL
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload(); // 刷新页面
+                    } else {
+                        alert('操作失败: ' + JSON.stringify(data.message));
+                    }
+                })
+                .catch(error => {
+                    console.error('提交失败:', error);
+                    alert('提交失败，请检查网络或联系管理员');
+                });
+        });
+
+        // 删除原材料
+        document.querySelectorAll('.delete-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const id = this.dataset.id;
+                if (confirm('确定删除此条目？')) {
+                    fetch("{% url 'master_data:material_delete' pk=0 %}".replace('0', id), {
+                        method: 'DELETE',
+                        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            document.getElementById('row' + id).remove();
+                        } else {
+                            alert('删除失败');
+                        }
+                    });
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

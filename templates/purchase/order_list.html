@@ -1,0 +1,416 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>采购订单管理</h2>
+
+    <!-- 检索框 -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <input type="text" id="searchOrder" class="form-control w-50" placeholder="搜索订单编号或供应商">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#orderModal" id="createOrderButton">
+            <i class="fas fa-plus"></i> 创建采购订单
+        </button>
+    </div>
+
+    <!-- 采购订单表格 -->
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>订单编号</th>
+                <th>供应商</th>
+                <th>物料</th>
+                <th>总价</th>
+                <th>状态</th>
+                <th>创建人</th>
+                <th>创建时间</th>
+                <th>更新人</th>
+                <th>更新时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        
+        <tbody id="orderTableBody">
+            {% for order in orders %}
+            <tr>
+                <td>{{ order.order_number }}</td>
+                <td>{{ order.supplier.name }}</td>
+                <td>
+                    <ul>
+                        {% for item in order.purchaseorderitem_set.all %}
+                        <li>{{ item.material.name }} ({{ item.quantity }} @ {{ item.unit_price }})</li>
+                        {% endfor %}
+                    </ul>
+                </td>
+                <td>{{ order.total_price }}</td>
+                <td>{{ order.get_status_display }}</td>
+                <td>{{ order.created_by.username|default:"-" }}</td>
+                <td>{{ order.created_at|date:"Y-m-d H:i:s" }}</td>
+                <td>{{ order.updated_by.username|default:"-" }}</td>
+                <td>{{ order.updated_at|date:"Y-m-d H:i:s" }}</td>
+                <td>
+                    <button class="btn btn-warning btn-sm edit-order" data-id="{{ order.id }}">编辑</button>
+                    <button class="btn btn-danger btn-sm delete-order" data-id="{{ order.id }}">删除</button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="10" class="text-center text-muted">暂无采购订单</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        
+    </table>
+
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">上一页</a>
+            </li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}">下一页</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    
+</div>
+
+<!-- 创建采购订单模态框 -->
+<div class="modal fade" id="orderModal" tabindex="-1" aria-labelledby="orderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="orderForm">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="orderModalLabel">创建采购订单</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <!-- 供应商选择 -->
+                        <div class="col-md-6">
+                            <label for="supplierSelect" class="form-label">供应商</label>
+                            <select id="supplierSelect" name="supplier" class="form-select" required>
+                                <option value="">请选择供应商</option>
+                                <!-- 动态加载供应商列表 -->
+                            </select>
+                        </div>
+                        <!-- 总价 -->
+                        <div class="col-md-6">
+                            <label for="totalPrice" class="form-label">总价</label>
+                            <input type="number" id="totalPrice" class="form-control" readonly>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <h6>采购物料</h6>
+                        <div id="materialList">
+                            <div class="row g-3 material-item">
+                                <div class="col-md-4">
+                                    <label class="form-label">物料</label>
+                                    <select class="form-select material-select" name="materials" required>
+                                        <option value="">请选择物料</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">单价</label>
+                                    <input type="number" class="form-control unit-price" readonly>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">数量</label>
+                                    <input type="number" class="form-control quantity" name="quantities" required>
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <button type="button" class="btn btn-danger remove-material">移除</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-secondary mt-3" id="addMaterial">添加物料</button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const supplierSelect = document.getElementById("supplierSelect");
+        const materialList = document.getElementById("materialList");
+        const totalPriceInput = document.getElementById("totalPrice");
+
+        // 动态加载供应商列表
+        document.getElementById("createOrderButton").addEventListener("click", function () {
+            fetch("/master_data/suppliers/list")
+                .then(response => response.json())
+                .then(data => {
+                    supplierSelect.innerHTML = '<option value="">请选择供应商</option>';
+                    data.results.forEach(supplier => {
+                        supplierSelect.innerHTML += `<option value="${supplier.id}">${supplier.name}</option>`;
+                    });
+                });
+        });
+
+        // 动态加载物料
+        supplierSelect.addEventListener("change", function () {
+            const supplierId = this.value;
+            fetch(`/master_data/materials/list?supplier=${supplierId}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.querySelectorAll(".material-select").forEach(select => {
+                        select.innerHTML = '<option value="">请选择物料</option>';
+                        data.materials.forEach(material => {
+                            select.innerHTML += `<option value="${material.id}" data-price="${material.price}">${material.name}</option>`;
+                        });
+                    });
+                });
+        });
+
+        // 添加物料行
+        document.getElementById("addMaterial").addEventListener("click", function () {
+            const clone = materialList.querySelector(".material-item").cloneNode(true);
+            materialList.appendChild(clone);
+        });
+
+        // 删除物料行
+        materialList.addEventListener("click", function (e) {
+            if (e.target.classList.contains("remove-material")) {
+                e.target.closest(".material-item").remove();
+                calculateTotalPrice();
+            }
+        });
+
+        // 动态更新单价和总价
+        materialList.addEventListener("change", function (e) {
+            if (e.target.classList.contains("material-select")) {
+                const selectedOption = e.target.selectedOptions[0];
+                const price = selectedOption.dataset.price || 0;
+                e.target.closest(".material-item").querySelector(".unit-price").value = price;
+                calculateTotalPrice();
+            } else if (e.target.classList.contains("quantity")) {
+                calculateTotalPrice();
+            }
+        });
+
+        function calculateTotalPrice() {
+            let total = 0;
+            document.querySelectorAll(".material-item").forEach(item => {
+                const price = parseFloat(item.querySelector(".unit-price").value || 0);
+                const quantity = parseFloat(item.querySelector(".quantity").value || 0);
+                total += price * quantity;
+            });
+            totalPriceInput.value = total.toFixed(2);
+        }
+
+        document.querySelectorAll('.view-order').forEach(button => {
+            button.addEventListener('click', function () {
+                const id = this.dataset.id;
+                fetch(`/purchase/orders/view/${id}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(`订单编号: ${data.order.order_number}\n供应商: ${data.order.supplier}\n总价: ${data.order.total_price}`);
+                        } else {
+                            alert('加载失败');
+                        }
+                    });
+            });
+        });
+        
+        document.querySelectorAll('.delete-order').forEach(button => {
+            button.addEventListener('click', function () {
+                const id = this.dataset.id;
+                if (confirm('确定要删除此订单吗？')) {
+                    fetch(`/purchase/orders/delete/${id}/`, {
+                        method: 'DELETE',
+                        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert('删除成功');
+                                location.reload();
+                            } else {
+                                alert('删除失败');
+                            }
+                        });
+                }
+            });
+        });
+        
+        // 点击编辑按钮
+        document.querySelectorAll('.edit-order').forEach(button => {
+            button.addEventListener('click', function () {
+                setModalTitle(true); // 设置为编辑标题
+                const id = this.dataset.id;
+                // 动态设置表单标题和 action URL
+        const orderForm = document.getElementById('orderForm');
+        orderForm.action = `/purchase/orders/edit/${id}/`;
+                // 加载订单数据并填充模态框
+                fetch(`/purchase/orders/view/${id}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('加载的订单数据:', data); // 调试日志
+                        if (data.success) {
+                            initializeForm(data.order, data.suppliers, data.materials); // 初始化表单内容
+                            new bootstrap.Modal(document.getElementById('orderModal')).show(); // 显示模态框
+                        } else {
+                            alert('加载失败: ' + (data.message || '未知错误'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('请求失败:', error);
+                        alert('加载订单失败，请检查网络或联系管理员');
+                    });
+            });
+        });
+        
+
+        // 点击创建按钮
+        document.getElementById('createOrderButton').addEventListener('click', function () {
+            setModalTitle(false); // 设置为创建标题
+            resetForm(); // 重置模态框内容
+        });
+
+        
+        // 动态设置模态框标题
+        function setModalTitle(isEdit) {
+            const modalTitle = document.getElementById('orderModalLabel');
+            modalTitle.textContent = isEdit ? '编辑采购订单' : '创建采购订单';
+        }
+
+        // 搜索订单
+        document.getElementById("searchOrder").addEventListener("input", function () {
+            const query = this.value.toLowerCase();
+            document.querySelectorAll("#orderTableBody tr").forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
+            });
+        });
+
+        function initializeForm(order, suppliers, materials) {
+            const supplierSelect = document.getElementById('supplierSelect');
+            const materialList = document.getElementById('materialList');
+        
+            // 填充供应商选择框
+            supplierSelect.innerHTML = '<option value="">请选择供应商</option>';
+            suppliers.forEach(supplier => {
+                supplierSelect.innerHTML += `
+                    <option value="${supplier.id}" ${supplier.id == order.supplier_id ? 'selected' : ''}>
+                        ${supplier.name}
+                    </option>`;
+            });
+        
+             // 设置供应商
+            if (order) {
+                supplierSelect.value = order.supplier_id;
+            } else {
+                supplierSelect.value = '';
+            }
+            // 初始化物料项
+            materialList.innerHTML = ''; // 清空现有物料
+            if (order.items.length > 0) {
+                order.items.forEach(item => {
+                    addMaterialRow(item.material__id, item.unit_price, item.quantity, materials);
+                });
+            } else {
+                addMaterialRow(); // 添加一个空白物料行
+            }
+        }
+        
+        
+        // 添加物料行
+        function addMaterialRow(selectedMaterialId = '', unitPrice = '', quantity = '', materials = []) {
+            const materialOptions = materials.map(material => `
+                <option value="${material.id}" data-price="${material.unit_price}" ${material.id == selectedMaterialId ? 'selected' : ''}>
+                    ${material.name}
+                </option>`).join('');
+        
+            const materialRow = `
+                <div class="row g-3 material-item">
+                    <div class="col-md-4">
+                        <label class="form-label">物料</label>
+                        <select class="form-select material-select" name="materials[]" required>
+                            <option value="">请选择物料</option>
+                            ${materialOptions}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">单价</label>
+                        <input type="number" class="form-control unit-price" name="unit_prices[]" value="${unitPrice}" readonly>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">数量</label>
+                        <input type="number" class="form-control quantity" name="quantities[]" value="${quantity}" required>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="button" class="btn btn-danger remove-material">移除</button>
+                    </div>
+                </div>`;
+            document.getElementById('materialList').insertAdjacentHTML('beforeend', materialRow);
+
+        }
+        
+        
+        // 初始化表单
+        function resetForm() {
+            document.getElementById('orderForm').action = "{% url 'purchase:order_create' %}";
+            document.getElementById('orderModalLabel').textContent = "创建采购订单";
+            supplierSelect.innerHTML = '<option value="">请选择供应商</option>';
+            materialList.innerHTML = '';
+            addMaterialRow();
+            totalPriceInput.value = '';
+        }
+
+        document.getElementById('materialList').addEventListener('click', function (e) {
+            if (e.target.classList.contains('remove-material')) {
+                const materialItems = document.querySelectorAll('.material-item');
+                if (materialItems.length > 1) {
+                    e.target.closest('.material-item').remove();
+                    calculateTotalPrice(); // 更新总价
+                } else {
+                    alert('至少需要保留一个物料项');
+                }
+            }
+        });
+        
+
+        // 提交表单
+        // 提交表单
+        document.getElementById("orderForm").addEventListener("submit", function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const actionUrl = this.action; // 动态获取当前 form 的 action
+
+            fetch(actionUrl, {
+                method: "POST",
+                body: formData,
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(actionUrl.includes("create") ? "订单创建成功！" : "订单编辑成功！");
+                        location.reload(); // 刷新页面
+                    } else {
+                        alert((actionUrl.includes("create") ? "创建失败：" : "编辑失败：") + JSON.stringify(data.errors));
+                    }
+                })
+                .catch(error => {
+                    alert("请求失败：" + error.message);
+                });
+        });
+
+    });
+</script>
+{% endblock %}

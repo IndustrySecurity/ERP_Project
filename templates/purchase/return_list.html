@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>采购退库列表</h2>
+
+    <!-- 检索和创建按钮 -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <input type="text" id="searchReturn" class="form-control w-50" placeholder="搜索订单编号、物料或备注">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#returnModal">
+            <i class="fas fa-undo"></i> 创建退库
+        </button>
+    </div>
+
+    <!-- 退库记录表 -->
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>退库单编号</th>
+                <th>订单编号</th>
+                <th>物料</th>
+                <th>退货数量</th>
+                <th>仓库位置</th>
+                <th>退货日期</th>
+                <th>备注</th>
+                <th>创建人</th>
+                <th>创建时间</th>
+            </tr>
+        </thead>
+        <tbody id="returnTableBody">
+            {% for return_entry in returns %}
+            <tr>
+                <td>{{ return_entry.return_number }}</td>
+                <td>{{ return_entry.order.order_number }}</td>
+                <td>{{ return_entry.material.name }}</td>
+                <td>{{ return_entry.quantity }}</td>
+                <td>{{ return_entry.location.name }}</td>
+                <td>{{ return_entry.date }}</td>
+                <td>{{ return_entry.remarks|default:"无" }}</td>
+                <td>{{ return_entry.created_by.username|default:"-" }}</td>
+                <td>{{ return_entry.created_at|date:"Y-m-d H:i:s" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="9" class="text-center text-muted">暂无退库记录</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+       
+        
+    </table>
+</div>
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">上一页</a>
+        </li>
+        {% endif %}
+        {% for num in page_obj.paginator.page_range %}
+        <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+            <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
+        </li>
+        {% endfor %}
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}">下一页</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+<!-- 创建退库模态框 -->
+<div class="modal fade" id="returnModal" tabindex="-1" aria-labelledby="returnModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="returnForm">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="returnModalLabel">创建采购退库</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <!-- 选择订单 -->
+                        <div class="col-md-6">
+                            <label for="returnOrder" class="form-label">选择订单</label>
+                            <select id="returnOrder" name="order" class="form-select" required>
+                                <option value="">请选择订单</option>
+                                {% for order in orders %}
+                                <option value="{{ order.id }}">{{ order.order_number }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <!-- 选择物料 -->
+                        <div class="col-md-6">
+                            <label for="returnMaterial" class="form-label">选择物料</label>
+                            <select id="returnMaterial" name="material" class="form-select" required>
+                                <option value="">请选择物料</option>
+                            </select>
+                        </div>
+                                           <!-- 仓库位置 -->
+                                           <div class="col-md-6">
+                                            <label for="returnLocation" class="form-label">退货仓库</label>
+                                            <select id="returnLocation" name="location" class="form-select" required>
+                                                <option value="">请选择仓库</option>
+                                                {% for location in locations %}
+                                                <option value="{{ location.id }}">{{ location.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                        <!-- 当前库存 -->
+                        <div class="col-md-6">
+                            <label for="currentStock" class="form-label">当前库存</label>
+                            <input type="number" id="currentStock" class="form-control" readonly>
+                        </div>
+                        <!-- 退货数量 -->
+                        <div class="col-md-6">
+                            <label for="returnQuantity" class="form-label">退货数量</label>
+                            <input type="number" id="returnQuantity" name="quantity" class="form-control" required>
+                        </div>
+     
+                        <!-- 备注 -->
+                        <div class="col-md-12">
+                            <label for="returnRemarks" class="form-label">备注</label>
+                            <textarea id="returnRemarks" name="remarks" class="form-control"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // 搜索功能
+        document.getElementById('searchReturn').addEventListener('input', function () {
+            const query = this.value.toLowerCase();
+            document.querySelectorAll('#returnTableBody tr').forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
+            });
+        });
+
+        // 动态加载订单物料
+        document.getElementById('returnOrder').addEventListener('change', function () {
+            const orderId = this.value;
+            if (!orderId) {
+                document.getElementById('returnMaterial').innerHTML = '<option value="">请选择物料</option>';
+                return;
+            }
+
+            fetch(`/purchase/orders/${orderId}/materials/`)
+                .then(response => response.json())
+                .then(data => {
+                    const materialSelect = document.getElementById('returnMaterial');
+                    materialSelect.innerHTML = '<option value="">请选择物料</option>';
+                    data.results.forEach(item => {
+                        materialSelect.innerHTML += `<option value="${item.material_id}">${item.material_name}</option>`;
+                    });
+                });
+        });
+
+        // 获取库存数量
+        document.getElementById('returnMaterial').addEventListener('change', function () {
+            const materialId = this.value;
+            const locationId = document.getElementById('returnLocation').value;
+            if (!materialId || !locationId) {
+                document.getElementById('currentStock').value = '';
+                return;
+            }
+        
+            fetch(`/purchase/materials/stock/?material_id=${materialId}&location_id=${locationId}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('currentStock').value = data.quantity || 0;
+                });
+        });
+        document.getElementById('returnLocation').addEventListener('change', function () {
+            const materialId = document.getElementById('returnMaterial').value;
+            const locationId = this.value;
+        
+            if (!materialId || !locationId) {
+                document.getElementById('currentStock').value = '';
+                return;
+            }
+        
+            fetch(`/purchase/materials/stock/?material_id=${materialId}&location_id=${locationId}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('currentStock').value = data.quantity || 0;
+                })
+                .catch(() => {
+                    document.getElementById('currentStock').value = '加载失败';
+                });
+        });
+        
+        document.getElementById('returnForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+        
+            fetch("{% url 'purchase:return_create' %}", {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('保存失败: ' + data.message);
+                }
+            })
+            .catch(() => alert('网络错误，保存失败'));
+        });
+        
+    });
+</script>
+{% endblock %}

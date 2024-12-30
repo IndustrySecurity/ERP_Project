@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>采购入库列表</h2>
+
+    <!-- 检索和创建按钮 -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <input type="text" id="searchReceipt" class="form-control w-50" placeholder="搜索订单编号、仓库或备注">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#receiptModal">
+            <i class="fas fa-box"></i> 创建入库
+        </button>
+    </div>
+
+    <!-- 入库记录表 -->
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>入库单编号</th>
+                <th>订单编号</th>
+                <th>仓库位置</th>
+                <th>入库日期</th>
+                <th>备注</th>
+                <th>创建人</th>
+                <th>创建时间</th>
+            </tr>
+        </thead>
+        <tbody id="receiptTableBody">
+            {% for receipt in receipts %}
+            <tr>
+                <td>{{ receipt.receipt_number }}</td>
+                <td>{{ receipt.order.order_number }}</td>
+                <td>{{ receipt.location.name }}</td>
+                <td>{{ receipt.date }}</td>
+                <td>{{ receipt.remarks|default:"无" }}</td>
+                <td>{{ receipt.created_by.username|default:"-" }}</td>
+                <td>{{ receipt.created_at|date:"Y-m-d H:i:s" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center text-muted">暂无入库记录</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- 分页导航 -->
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">上一页</a>
+        </li>
+        {% endif %}
+        {% for num in page_obj.paginator.page_range %}
+        <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+        </li>
+        {% endfor %}
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}">下一页</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+
+
+<!-- 创建入库模态框 -->
+<div class="modal fade" id="receiptModal" tabindex="-1" aria-labelledby="receiptModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="receiptForm">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="receiptModalLabel">创建采购入库</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <!-- 选择订单 -->
+                        <div class="col-md-6">
+                            <label for="receiptOrder" class="form-label">选择订单</label>
+                            <select id="receiptOrder" name="order" class="form-select" required>
+                                <option value="">请选择订单</option>
+                                {% for order in orders %}
+                                <option value="{{ order.id }}">{{ order.order_number }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <!-- 仓库位置 -->
+                        <div class="col-md-6">
+                            <label for="receiptLocation" class="form-label">仓库位置</label>
+                            <select id="receiptLocation" name="location" class="form-select" required>
+                                <option value="">请选择仓库</option>
+                                {% for location in locations %}
+                                <option value="{{ location.id }}">{{ location.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <!-- 物料项 -->
+                        <div id="orderItems" class="col-md-12 mt-3">
+                            <label class="form-label">订单物料项</label>
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>物料名称</th>
+                                        <th>采购数量</th>
+                                        <th>入库数量</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="orderItemsBody">
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted">请选择订单以加载物料项</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <!-- 备注 -->
+                        <div class="col-md-12">
+                            <label for="receiptRemarks" class="form-label">备注</label>
+                            <textarea id="receiptRemarks" name="remarks" class="form-control"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // 搜索功能
+        document.getElementById('searchReceipt').addEventListener('input', function () {
+            const query = this.value.toLowerCase();
+            document.querySelectorAll('#receiptTableBody tr').forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
+            });
+        });
+
+        // 动态加载订单项
+        document.getElementById('receiptOrder').addEventListener('change', function () {
+            const orderId = this.value;
+            const orderItemsBody = document.getElementById('orderItemsBody');
+
+            if (!orderId) {
+                orderItemsBody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">请选择订单以加载物料项</td></tr>`;
+                return;
+            }
+
+            fetch(`/purchase/orders/${orderId}/items/`)
+    .then(response => response.json())
+    .then(data => {
+        console.log("Data:", data);
+        if (data.success && data.items.length > 0) { // 注意这里从 data.results 改为 data.items
+            orderItemsBody.innerHTML = '';
+            data.items.forEach(item => {
+                orderItemsBody.innerHTML += `
+                    <tr>
+                        <td>${item.material_name}</td>
+                        <td>${item.quantity}</td>
+                        <td>
+                            <input type="hidden" name="material_ids[]" value="${item.material_id}">
+                            <input type="number" class="form-control" name="received_quantities[]" max="${item.quantity}" value="${item.quantity}" required>
+                        </td>
+                    </tr>
+                `;
+            });
+        } else {
+            orderItemsBody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">此订单无物料项</td></tr>`;
+        }
+    })
+    .catch(() => {
+        orderItemsBody.innerHTML = `<tr><td colspan="3" class="text-center text-danger">加载失败，请稍后再试</td></tr>`;
+    });
+
+        });
+
+        // 表单提交
+        document.getElementById('receiptForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            fetch("{% url 'purchase:receipt_create' %}", {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('保存失败: ' + data.message);
+                }
+            })
+            .catch(() => alert('网络错误，保存失败'));
+        });
+    });
+</script>
+{% endblock %}

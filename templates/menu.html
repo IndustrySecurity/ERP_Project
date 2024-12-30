@@ -1,0 +1,173 @@
+<div class="menu bg-light vh-100 p-3">
+    <ul class="nav flex-column">
+        <!-- 首页 -->
+        <li class="nav-item">
+            <a class="nav-link {% if request.path == '/' %}active{% endif %}" 
+               href="{% url 'home' %}">
+                <i class="fas fa-home"></i> 首页
+            </a>
+        </li>
+
+        <!-- 用户管理 -->
+        <li class="nav-item">
+            <a class="nav-link {% if '/users/' in request.path %}active{% endif %}" 
+               data-bs-toggle="collapse" href="#userManagementMenu" role="button" aria-expanded="false" aria-controls="userManagementMenu">
+                <i class="fas fa-user-cog"></i> 用户管理
+            </a>
+            <div class="collapse {% if '/users/' in request.path %}show{% endif %}" id="userManagementMenu">
+                <ul class="nav flex-column ms-3">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/users/' %}active{% endif %}" 
+                           href="{% url 'users:user_list' %}">
+                            <i class="fas fa-user"></i> 用户信息
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/users/roles/' %}active{% endif %}" 
+                           href="{% url 'users:role_list' %}">
+                            <i class="fas fa-user-shield"></i> 角色管理
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </li>
+
+        <!-- 主数据管理 -->
+        <li class="nav-item">
+            <a class="nav-link {% if '/master_data/' in request.path %}active{% endif %}" 
+               data-bs-toggle="collapse" href="#masterDataMenu" role="button" aria-expanded="false" aria-controls="masterDataMenu">
+                <i class="fas fa-database"></i> 主数据管理
+            </a>
+            <div class="collapse {% if '/master_data/' in request.path %}show{% endif %}" id="masterDataMenu">
+                <ul class="nav flex-column ms-3">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/master_data/materials/' %}active{% endif %}" 
+                           href="{% url 'master_data:material_list' %}">
+                            <i class="fas fa-box"></i> 原材料管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/master_data/products/' %}active{% endif %}" 
+                           href="{% url 'master_data:product_list' %}">
+                            <i class="fas fa-tags"></i> 产品管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/master_data/recipes/' %}active{% endif %}" 
+                           href="{% url 'master_data:recipe_list' %}">
+                            <i class="fas fa-scroll"></i> 配方管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/master_data/suppliers/' %}active{% endif %}" 
+                           href="{% url 'master_data:supplier_list' %}">
+                            <i class="fas fa-truck"></i> 供应商管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/master_data/customers/' %}active{% endif %}" 
+                           href="{% url 'master_data:customer_list' %}">
+                            <i class="fas fa-users"></i> 客户管理
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </li>
+
+        <!-- 采购管理 -->
+        <li class="nav-item">
+            <a class="nav-link {% if '/purchase/' in request.path %}active{% endif %}" 
+               data-bs-toggle="collapse" href="#purchaseMenu" role="button" aria-expanded="false" aria-controls="purchaseMenu">
+                <i class="fas fa-shopping-cart"></i> 采购管理
+            </a>
+            <div class="collapse {% if '/purchase/' in request.path %}show{% endif %}" id="purchaseMenu">
+                <ul class="nav flex-column ms-3">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/purchase/orders/' %}active{% endif %}" 
+                           href="{% url 'purchase:order_list' %}">
+                            <i class="fas fa-clipboard-list"></i> 采购订单
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/purchase/receipts/' %}active{% endif %}" 
+                           href="{% url 'purchase:receipt_list' %}">
+                            <i class="fas fa-box-open"></i> 采购入库
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/purchase/returns/' %}active{% endif %}" 
+                           href="{% url 'purchase:return_list' %}">
+                            <i class="fas fa-undo-alt"></i> 采购退库
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </li>
+
+        <!-- 仓库管理 -->
+        <li class="nav-item">
+            <a class="nav-link {% if '/warehouse/' in request.path %}active{% endif %}" 
+               data-bs-toggle="collapse" href="#warehouseMenu" role="button" aria-expanded="false" aria-controls="warehouseMenu">
+                <i class="fas fa-warehouse"></i> 仓库管理
+            </a>
+            <div class="collapse {% if '/warehouse/' in request.path %}show{% endif %}" id="warehouseMenu">
+                <ul class="nav flex-column ms-3">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/warehouse/locations/' %}active{% endif %}" 
+                           href="{% url 'warehouse:warehouse_location_list' %}">
+                            <i class="fas fa-map-marker-alt"></i> 仓库位置
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/warehouse/material_stock/' %}active{% endif %}" 
+                           href="{% url 'warehouse:material_stock_list' %}">
+                            <i class="fas fa-cubes"></i> 原材料仓
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/warehouse/product_stock/' %}active{% endif %}" 
+                           href="{% url 'warehouse:product_stock_list' %}">
+                            <i class="fas fa-boxes"></i> 成品仓
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/warehouse/inventory_check/' %}active{% endif %}" 
+                           href="{% url 'warehouse:inventory_check_list' %}">
+                            <i class="fas fa-clipboard-check"></i> 库存盘点
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </li>
+
+        <!-- 销售管理 -->
+        <li class="nav-item">
+            <a class="nav-link {% if '/sales/' in request.path %}active{% endif %}" 
+               data-bs-toggle="collapse" href="#salesMenu" role="button" aria-expanded="false" aria-controls="salesMenu">
+                <i class="fas fa-shopping-bag"></i> 销售管理
+            </a>
+            <div class="collapse {% if '/sales/' in request.path %}show{% endif %}" id="salesMenu">
+                <ul class="nav flex-column ms-3">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/sales/orders/' %}active{% endif %}" 
+                           href="{% url 'sales:order_list' %}">
+                            <i class="fas fa-receipt"></i> 销售订单
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/sales/deliveries/' %}active{% endif %}" 
+                           href="{% url 'sales:delivery_list' %}">
+                            <i class="fas fa-truck-loading"></i> 销售出库
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/sales/returns/' %}active{% endif %}" 
+                           href="{% url 'sales:return_list' %}">
+                            <i class="fas fa-undo"></i> 销售退库
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </li>
+    </ul>
+</div>

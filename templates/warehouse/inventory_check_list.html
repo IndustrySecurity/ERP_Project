@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>库存盘点记录</h2>
+
+    <!-- 检索框 -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <form method="GET" class="d-flex w-50">
+                <input type="text" name="q" id="searchInventoryCheck" value="{{ query|default:'' }}" 
+                       class="form-control" placeholder="搜索仓库、项目或日期">
+                <button type="submit" class="btn btn-secondary ms-2">搜索</button>
+            </form>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#inventoryModal">
+                <i class="fas fa-boxes"></i> 盘点库存
+            </button>
+            <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#transferModal">
+                <i class="fas fa-exchange-alt"></i> 调拨库存
+            </button>
+        </div>
+
+    <!-- 盘点记录表格 -->
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>仓库位置</th>
+                <th>类别</th>
+                <th>盘点项目</th>
+                <th>盘点前数量</th>
+                <th>盘点后数量</th>
+                <th>盈亏数量</th>
+                <th>盘点日期</th>
+                <th>创建人</th>
+                <th>备注</th>
+            </tr>
+        </thead>
+        <tbody id="inventoryTableBody">
+            {% for record in records %}
+            <tr>
+                <td>{{ record.location.name }}</td>
+                <td>{{ record.get_category_display }}</td>
+                <td>{{ record.item }}</td> <!-- 显示项目名称 -->
+                <td>{{ record.before_quantity }}</td>
+                <td>{{ record.after_quantity }}</td>
+                <td>{{ record.variance }}</td>
+                <td>{{ record.date }}</td>
+                <td>{{ record.created_by.username|default:"-" }}</td> <!-- 显示创建人 -->
+                <td>{{ record.remarks }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="9" class="text-center text-muted">暂无盘点记录</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        
+        
+    </table>
+    <nav>
+        <ul class="pagination">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">&laquo;</a>
+            </li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}">&raquo;</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    
+</div>
+
+
+
+<!-- 盘点库存模态框 -->
+<div class="modal fade" id="inventoryModal" tabindex="-1" aria-labelledby="inventoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="inventoryForm" method="POST">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="inventoryModalLabel">盘点库存</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="inventoryCategory" class="form-label">类别</label>
+                            <select id="inventoryCategory" name="category" class="form-select" required>
+                                <option value="">请选择类别</option>
+                                <option value="material">原材料</option>
+                                <option value="product">成品</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="inventoryLocation" class="form-label">仓库位置</label>
+                            <select id="inventoryLocation" name="location" class="form-select" required>
+                                <option value="">请选择仓库位置</option>
+                                {% for location in locations %}
+                                <option value="{{ location.id }}">{{ location.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="inventoryItem" class="form-label">盘点项目</label>
+                            <select id="inventoryItem" name="item" class="form-select" required>
+                                <option value="">请选择</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="inventoryBeforeQuantity" class="form-label">盘点前数量</label>
+                            <input type="number" id="inventoryBeforeQuantity" name="before_quantity" class="form-control" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="inventoryAfterQuantity" class="form-label">盘点后数量</label>
+                            <input type="number" id="inventoryAfterQuantity" name="after_quantity" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="inventoryRemarks" class="form-label">备注</label>
+                            <textarea id="inventoryRemarks" name="remarks" class="form-control"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 调拨库存模态框 -->
+<div class="modal fade" id="transferModal" tabindex="-1" aria-labelledby="transferModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="transferForm">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="transferModalLabel">调拨库存</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="transferCategory" class="form-label">类别</label>
+                            <select id="transferCategory" name="category" class="form-select" required>
+                                <option value="">请选择类别</option>
+                                <option value="material">原材料</option>
+                                <option value="product">成品</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="transferFromLocation" class="form-label">调出仓库</label>
+                            <select id="transferFromLocation" name="from_location" class="form-select" required>
+                                <option value="">请选择调出仓库</option>
+                                {% for location in locations %}
+                                <option value="{{ location.id }}">{{ location.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="transferToLocation" class="form-label">调入仓库</label>
+                            <select id="transferToLocation" name="to_location" class="form-select" required>
+                                <option value="">请选择调入仓库</option>
+                                {% for location in locations %}
+                                <option value="{{ location.id }}">{{ location.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="transferItem" class="form-label">调拨项目</label>
+                            <select id="transferItem" name="item" class="form-select" required>
+                                <option value="">请选择</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="transferQuantity" class="form-label">调拨数量</label>
+                            <input type="number" id="transferQuantity" name="quantity" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="transferRemarks" class="form-label">备注</label>
+                            <textarea id="transferRemarks" name="remarks" class="form-control"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const populateItems = (category, location, target) => {
+            if (!category || !location) return;
+            fetch(`/warehouse/get_items/?category=${category}&location=${location}`)
+                .then(response => response.json())
+                .then(data => {
+                    const select = document.getElementById(target);
+                    select.innerHTML = '<option value="">请选择</option>';
+                    data.results.forEach(item => {
+                        select.innerHTML += `<option value="${item.id}">${item.name}</option>`;
+                    });
+                });
+        };
+
+        const updateBeforeQuantity = (category, location, itemId, target) => {
+            if (!category || !location || !itemId) return;
+            fetch(`/warehouse/get_quantity/?category=${category}&location=${location}&item=${itemId}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById(target).value = data.quantity || 0;
+                });
+        };
+
+        // Event Listeners for Inventory Modal
+        document.getElementById('inventoryCategory').addEventListener('change', () => {
+            populateItems(
+                document.getElementById('inventoryCategory').value,
+                document.getElementById('inventoryLocation').value,
+                'inventoryItem'
+            );
+        });
+        document.getElementById('inventoryLocation').addEventListener('change', () => {
+            populateItems(
+                document.getElementById('inventoryCategory').value,
+                document.getElementById('inventoryLocation').value,
+                'inventoryItem'
+            );
+        });
+        document.getElementById('inventoryItem').addEventListener('change', () => {
+            updateBeforeQuantity(
+                document.getElementById('inventoryCategory').value,
+                document.getElementById('inventoryLocation').value,
+                document.getElementById('inventoryItem').value,
+                'inventoryBeforeQuantity'
+            );
+        });
+        document.getElementById('inventoryForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+        
+            fetch('/warehouse/inventory_checks/create/', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('盘点记录已保存');
+                        location.reload();
+                    } else {
+                        alert(`保存失败: ${data.message || '未知错误'}`);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        });
+        // Event Listeners for Transfer Modal
+        document.getElementById('transferCategory').addEventListener('change', () => {
+            populateItems(
+                document.getElementById('transferCategory').value,
+                document.getElementById('transferFromLocation').value,
+                'transferItem'
+            );
+        });
+        document.getElementById('transferFromLocation').addEventListener('change', () => {
+            populateItems(
+                document.getElementById('transferCategory').value,
+                document.getElementById('transferFromLocation').value,
+                'transferItem'
+            );
+        });
+        document.getElementById('transferForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+        
+            fetch('/warehouse/transfer/', {
+                method: 'POST',  // 修正为 POST 方法
+                body: formData,
+                headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') },
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload(); // 刷新页面以显示更新后的库存信息
+                    } else {
+                        alert(`调拨失败: ${data.message}`);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        });
+        
+    });
+</script>
+{% endblock %}

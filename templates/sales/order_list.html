@@ -1,0 +1,612 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>销售订单列表</h2>
+    <!-- 搜索栏 -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <form method="GET" class="d-flex w-50">
+            <input type="text" name="q" id="searchOrder" value="{{ query|default:'' }}" class="form-control" placeholder="搜索订单编号、客户或创建人">
+            <button type="submit" class="btn btn-secondary ms-2">搜索</button>
+        </form>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#orderModal">
+            <i class="fas fa-receipt"></i> 创建订单
+        </button>
+    </div>
+
+    <!-- 销售订单表格 -->
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>订单编号</th>
+                <th>客户名称</th>
+                <th>客户合同号</th>
+                <th>交付时间</th>
+                <th>销售金额</th>
+                <th>已付金额</th>
+                <th>销售员</th>
+                <th>订单项</th>
+                <th>状态</th>
+                <th>创建人</th>
+                <th>创建时间</th>
+                <th>更新人</th>
+                <th>更新时间</th>
+                <th>操作</th> <!-- 添加操作列 -->
+            </tr>
+        </thead>        
+        <tbody id="orderTableBody">
+            {% for order in orders %}
+            <tr>
+                <td>{{ order.order_number }}</td>
+                <td>{{ order.customer.name }}</td>
+                <td>{{ order.contract_number }}</td>
+                <td>{{ order.delivery_time }}</td>
+                <td>{{ order.sales_amount }}</td>
+                <td>{{ order.paid_amount }}</td>
+                <td>{{ order.salesperson.username }}</td>
+                <td>
+                    <ul>
+                        {% for item in order.salesorderitem_set.all %}
+                        <li>{{ item.product.name }} - {{ item.quantity }} x {{ item.unit_price }}</li>
+                        {% endfor %}
+                    </ul>
+                </td>
+                <td>{{ order.get_status_display }}</td>
+                <td>{{ order.created_by.username }}</td>
+                <td>{{ order.created_at_local }}</td>
+                <td>{{ order.updated_by.username }}</td>
+                <td>{{ order.updated_at }}</td>
+                <td>
+                    <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#viewOrderModal" onclick="viewOrderDetails({{ order.id }})">查看</button>
+                    <button class="btn btn-sm btn-warning edit-order" data-id="{{ order.id }}" data-bs-toggle="modal" data-bs-target="#editOrderModal">编辑</button>
+                    <button class="btn btn-sm btn-danger delete-order" data-id="{{ order.id }}">删除</button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="14" class="text-center text-muted">暂无订单</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        
+    </table>
+
+    <!-- 分页导航 -->
+    <nav>
+        <ul class="pagination">
+            {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">&laquo;</a></li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if page_obj.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a></li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}">&raquo;</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+
+<!-- 创建订单模态框 -->
+<div class="modal fade" id="orderModal" tabindex="-1" aria-labelledby="orderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="orderForm" method="POST" action="{% url 'sales:order_create' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="orderModalLabel">创建销售订单</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- 客户信息 -->
+                    <div class="mb-3">
+                        <label for="orderCustomer" class="form-label">客户</label>
+                        <select id="orderCustomer" name="customer" class="form-select">
+                            <option value="">选择客户</option>
+                            {% for customer in customers %}
+                            <option value="{{ customer.id }}">{{ customer.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- 订单其他信息 -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="orderSalesperson" class="form-label">销售员</label>
+                            <select id="orderSalesperson" name="salesperson" class="form-select">
+                                <option value="">选择销售员</option>
+                                {% for user in users %}
+                                <option value="{{ user.id }}">{{ user.username }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="orderContractNumber" class="form-label">客户合同号</label>
+                            <input type="text" id="orderContractNumber" name="contract_number" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="orderDeliveryTime" class="form-label">交付时间</label>
+                            <input type="date" id="orderDeliveryTime" name="delivery_time" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="orderSalesAmount" class="form-label">销售金额</label>
+                            <input type="number" id="orderSalesAmount" name="sales_amount" class="form-control" step="0.01">
+                        </div>
+                    </div>
+
+                    <!-- 备注 -->
+                    <div class="mb-3">
+                        <label for="orderRemarks" class="form-label">备注</label>
+                        <textarea id="orderRemarks" name="remarks" class="form-control"></textarea>
+                    </div>
+
+                    <!-- 动态订单项 -->
+                    <div id="orderItems">
+                        <!-- 动态添加订单项 -->
+                    </div>
+                    <button type="button" class="btn btn-sm btn-secondary" id="addOrderItem">添加订单项</button>
+
+                    <!-- 创建新产品表单 -->
+                    <div id="newProductForm" style="display: none;">
+                        <h5>创建新产品</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="newProductName" class="form-label">产品名称</label>
+                                <input type="text" id="newProductName" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="newProductCategory" class="form-label">类别</label>
+                                <select id="newProductCategory" class="form-select">
+                                    <option value="">选择类别</option>
+                                    {% for category in product_categories %}
+                                    <option value="{{ category.id }}">{{ category.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div id="materialSection">
+                            <h5>选择或创建原材料</h5>
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label for="newMaterialName" class="form-label">原材料名称</label>
+                                    <input type="text" id="newMaterialName" class="form-control">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="newMaterialCategory" class="form-label">原材料类别</label>
+                                    <select id="newMaterialCategory" class="form-select">
+                                        <option value="">选择类别</option>
+                                        {% for material_category in material_categories %}
+                                        <option value="{{ material_category.id }}">{{ material_category.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="newMaterialQuantity" class="form-label">原材料数量</label>
+                                    <input type="number" id="newMaterialQuantity" class="form-control" step="0.01">
+                                </div>
+                            </div>
+                            <button type="button" id="addMaterialToRecipe" class="btn btn-sm btn-secondary">添加到配方</button>
+                            <div id="recipeMaterials">
+                                <!-- 动态生成的原材料列表 -->
+                            </div>
+                        </div>
+                        <button type="button" id="saveNewProduct" class="btn btn-primary mt-3">保存新产品</button>
+                    </div>
+                    
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 查看订单模态框 -->
+<!-- 查看订单模态框 -->
+<div class="modal fade" id="viewOrderModal" tabindex="-1" aria-labelledby="viewOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewOrderModalLabel">订单详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- 基础信息 -->
+                <h5>基础信息</h5>
+                <table class="table table-bordered">
+                    <tbody>
+                        <tr>
+                            <th>订单编号</th>
+                            <td id="viewOrderNumber"></td>
+                        </tr>
+                        <tr>
+                            <th>客户名称</th>
+                            <td id="viewCustomer"></td>
+                        </tr>
+                        <tr>
+                            <th>销售员</th>
+                            <td id="viewSalesperson"></td>
+                        </tr>
+                        <tr>
+                            <th>交付时间</th>
+                            <td id="viewDeliveryTime"></td>
+                        </tr>
+                        <tr>
+                            <th>销售金额</th>
+                            <td id="viewSalesAmount"></td>
+                        </tr>
+                        <tr>
+                            <th>备注</th>
+                            <td id="viewRemarks"></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- 订单项 -->
+                <h5 class="mt-4">订单项</h5>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>产品名称</th>
+                            <th>数量</th>
+                            <th>单价</th>
+                        </tr>
+                    </thead>
+                    <tbody id="viewOrderItems"></tbody>
+                </table>
+
+                <!-- 产品配方 -->
+                <h5 class="mt-4">产品配方</h5>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>产品名称</th>
+                            <th>原材料名称</th>
+                            <th>类别</th>
+                            <th>数量</th>
+                        </tr>
+                    </thead>
+                    <tbody id="viewOrderMaterials"></tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" onclick="printOrderDetails()">打印</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- 编辑订单模态框 -->
+<!-- 编辑订单模态框 -->
+<div class="modal fade" id="editOrderModal" tabindex="-1" aria-labelledby="editOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="editOrderForm" method="POST" action="">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editOrderModalLabel">编辑订单</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- 基本信息 -->
+                    <div class="mb-3">
+                        <label for="editOrderCustomer" class="form-label">客户</label>
+                        <select id="editOrderCustomer" name="customer" class="form-select">
+                            {% for customer in customers %}
+                            <option value="{{ customer.id }}">{{ customer.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editOrderSalesperson" class="form-label">销售员</label>
+                        <select id="editOrderSalesperson" name="salesperson" class="form-select">
+                            {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editOrderContractNumber" class="form-label">客户合同号</label>
+                        <input type="text" id="editOrderContractNumber" name="contract_number" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editOrderDeliveryTime" class="form-label">交付时间</label>
+                        <input type="date" id="editOrderDeliveryTime" name="delivery_time" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editOrderSalesAmount" class="form-label">销售金额</label>
+                        <input type="number" id="editOrderSalesAmount" name="sales_amount" class="form-control" step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editOrderRemarks" class="form-label">备注</label>
+                        <textarea id="editOrderRemarks" name="remarks" class="form-control"></textarea>
+                    </div>
+
+                    <!-- 订单项 -->
+                    <h5>订单项</h5>
+                    <div id="editOrderItemsContainer"></div>
+                    <button type="button" id="addEditOrderItem" class="btn btn-sm btn-secondary mt-2">添加订单项</button>
+
+                    <!-- 隐藏模板 -->
+                    <template id="editOrderItemTemplate">
+                        <div class="row mb-2">
+                            <div class="col-md-5">
+                                <select class="form-select" name="items[{index}][product_id]">
+                                    <option value="">选择产品</option>
+                                    {% for product in products %}
+                                    <option value="{{ product.id }}">{{ product.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="number" class="form-control" name="items[{index}][quantity]" placeholder="数量">
+                            </div>
+                            <div class="col-md-3">
+                                <input type="number" class="form-control" name="items[{index}][unit_price]" placeholder="单价">
+                            </div>
+                            <div class="col-md-1">
+                                <button type="button" class="btn btn-sm btn-danger remove-edit-item">&times;</button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">保存修改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+        document.getElementById('addOrderItem').addEventListener('click', function () {
+            const orderItemsDiv = document.getElementById('orderItems');
+            const itemIndex = orderItemsDiv.children.length;
+        
+            // 动态添加新订单项
+            const newItemHTML = `
+                <div class="row mb-2 order-item">
+                    <div class="col-md-5">
+                        <select name="items[${itemIndex}][product_id]" class="form-select">
+                            <option value="">选择产品</option>
+                            {% for product in products %}
+                            <option value="{{ product.id }}">{{ product.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" name="items[${itemIndex}][quantity]" class="form-control" placeholder="数量">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" name="items[${itemIndex}][unit_price]" class="form-control" placeholder="单价">
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-sm btn-danger remove-item">&times;</button>
+                    </div>
+                </div>
+            `;
+        
+            // 将新订单项追加到现有内容
+            orderItemsDiv.insertAdjacentHTML('beforeend', newItemHTML);
+        });
+        
+        // 删除订单项的逻辑
+        document.getElementById('orderItems').addEventListener('click', function (e) {
+            if (e.target.classList.contains('remove-item')) {
+                e.target.closest('.order-item').remove();
+            }
+        });
+        
+
+        document.querySelectorAll('.edit-order').forEach(button => {
+            button.addEventListener('click', function () {
+                const orderId = button.getAttribute('data-id');
+        
+                // 设置表单 action URL
+                const editOrderForm = document.getElementById('editOrderForm');
+                editOrderForm.action = `/sales/orders/${orderId}/edit/`;
+        
+                // 获取订单详情
+                fetch(`/sales/orders/${orderId}/edit/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // 填充基本信息
+                            document.getElementById('editOrderCustomer').value = data.customer_id;
+                            document.getElementById('editOrderSalesperson').value = data.salesperson_id;
+                            document.getElementById('editOrderContractNumber').value = data.contract_number;
+                            document.getElementById('editOrderDeliveryTime').value = data.delivery_time;
+                            document.getElementById('editOrderSalesAmount').value = data.sales_amount;
+                            document.getElementById('editOrderRemarks').value = data.remarks;
+        
+                            // 清空并填充订单项
+                            const container = document.getElementById('editOrderItemsContainer');
+                            container.innerHTML = '';
+                            const template = document.getElementById('editOrderItemTemplate').content;
+        
+                            data.items.forEach((item, index) => {
+                                const clone = template.cloneNode(true);
+        
+                                // 动态设置索引
+                                clone.querySelector('select[name="items[{index}][product_id]"]')
+                                     .setAttribute('name', `items[${index}][product_id]`);
+                                clone.querySelector('input[name="items[{index}][quantity]"]')
+                                     .setAttribute('name', `items[${index}][quantity]`);
+                                clone.querySelector('input[name="items[{index}][unit_price]"]')
+                                     .setAttribute('name', `items[${index}][unit_price]`);
+        
+                                // 填充数据
+                                clone.querySelector(`select[name="items[${index}][product_id]"]`).value = item.product_id;
+                                clone.querySelector(`input[name="items[${index}][quantity]"]`).value = item.quantity;
+                                clone.querySelector(`input[name="items[${index}][unit_price]"]`).value = item.unit_price;
+        
+                                container.appendChild(clone);
+                            });
+        
+                            // 添加按钮逻辑
+                            document.getElementById('addEditOrderItem').addEventListener('click', function () {
+                                const index = container.children.length;
+                                const clone = template.cloneNode(true);
+        
+                                // 动态设置索引
+                                clone.querySelector('select[name="items[{index}][product_id]"]')
+                                     .setAttribute('name', `items[${index}][product_id]`);
+                                clone.querySelector('input[name="items[{index}][quantity]"]')
+                                     .setAttribute('name', `items[${index}][quantity]`);
+                                clone.querySelector('input[name="items[{index}][unit_price]"]')
+                                     .setAttribute('name', `items[${index}][unit_price]`);
+        
+                                container.appendChild(clone);
+                            });
+        
+                            // 删除按钮逻辑
+                            container.addEventListener('click', function (e) {
+                                if (e.target.classList.contains('remove-edit-item')) {
+                                    e.target.closest('.row').remove();
+                                }
+                            });
+                        } else {
+                            alert('无法加载订单详情');
+                        }
+                    })
+                    .catch(error => console.error('Error fetching order details:', error));
+            });
+        });
+        
+        
+        
+        
+        document.querySelectorAll('.delete-order').forEach(button => {
+            button.addEventListener('click', event => {
+                const orderId = button.dataset.id;
+        
+                if (confirm('确定要删除这个订单吗？')) {
+                    fetch(`/sales/orders/${orderId}/delete/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}',  // 确保包含 CSRF Token
+                        },
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('订单已删除');
+                            location.reload();
+                        } else {
+                            alert('删除失败: ' + data.message);
+                        }
+                    })
+                    .catch(error => console.error('Error deleting order:', error));
+                }
+            });
+        });
+        
+        
+
+        
+         
+        
+    });
+
+    function viewOrderDetails(orderId) {
+        fetch(`/sales/orders/${orderId}/details/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const order = data.order;
+    
+                    // 填充基础信息
+                    document.getElementById('viewOrderNumber').textContent = order.order_number;
+                    document.getElementById('viewCustomer').textContent = order.customer_name;
+                    document.getElementById('viewSalesperson').textContent = "";//order.salesperson_name;
+                    document.getElementById('viewDeliveryTime').textContent = order.delivery_time;
+                    document.getElementById('viewSalesAmount').textContent = "";//order.sales_amount;
+                    document.getElementById('viewRemarks').textContent = order.remarks;
+    
+                    // 填充订单项
+                    const itemsTable = document.getElementById('viewOrderItems');
+                    itemsTable.innerHTML = ''; // 清空内容
+                    order.items.forEach(item => {
+                        itemsTable.innerHTML += `
+                            <tr>
+                                <td>${item.product_name}</td>
+                                <td>${item.quantity}</td>
+                                <td>${item.unit_price}</td>
+                            </tr>`;
+                    });
+    
+                    // 填充产品配方
+                    const materialsTable = document.getElementById('viewOrderMaterials');
+                    materialsTable.innerHTML = ''; // 清空内容
+                    order.items.forEach(item => {
+                        if (item.recipe.length > 0) {
+                            item.recipe.forEach(material => {
+                                materialsTable.innerHTML += `
+                                    <tr>
+                                        <td>${item.product_name}</td>
+                                        <td>${material.material_name}</td>
+                                        <td>${material.material_category}</td>
+                                        <td>${material.quantity}</td>
+                                    </tr>`;
+                            });
+                        } else {
+                            materialsTable.innerHTML += `
+                                <tr>
+                                    <td>${item.product_name}</td>
+                                    <td colspan="3" class="text-center">无配方信息</td>
+                                </tr>`;
+                        }
+                    });
+                } else {
+                    alert('无法加载订单详情');
+                }
+            })
+            .catch(error => console.error('Error fetching order details:', error));
+    }
+    
+    
+    function printOrderDetails() {
+        const modalContent = document.querySelector('#viewOrderModal .modal-body').innerHTML;
+    
+        // 创建打印窗口
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>订单详情打印</title>
+                    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .table { width: 100%; margin-bottom: 1rem; border-collapse: collapse; }
+                        .table-bordered { border: 1px solid #dee2e6; }
+                        .table-bordered th, .table-bordered td { border: 1px solid #dee2e6; padding: 8px; text-align: left; }
+                        .table-striped tbody tr:nth-of-type(odd) { background-color: rgba(0, 0, 0, 0.05); }
+                        h5 { margin-top: 20px; }
+                    </style>
+                </head>
+                <body>
+                    <h3 class="text-center">订单详情</h3>
+                    ${modalContent}
+                </body>
+            </html>
+        `);
+    
+        printWindow.document.close();
+        printWindow.print();
+    }
+    
+</script>
+{% endblock %}

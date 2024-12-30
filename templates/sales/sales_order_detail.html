@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>销售订单详情</title>
+</head>
+<body>
+    <h1>订单 {{ sales_order.id }}</h1>
+    <p>客户: {{ sales_order.customer.name }}</p>
+    <p>订单日期: {{ sales_order.order_date }}</p>
+    <p>总金额: {{ sales_order.total_amount }}</p>
+</body>
+</html>

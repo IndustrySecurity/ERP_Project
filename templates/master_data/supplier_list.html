@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+
+{% block title %}供应商管理{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>供应商管理</h2>
+
+    <!-- 搜索框和创建按钮 -->
+    <div class="mb-3 row">
+        <div class="col-md-6">
+            <input type="text" class="form-control" id="searchSupplier" placeholder="搜索供应商名称">
+        </div>
+        <div class="col-md-6 text-end">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#supplierCreateModal">创建供应商</button>
+        </div>
+    </div>
+
+    <!-- 供应商表格 -->
+    <table class="table table-bordered" id="supplierTable">
+        <thead>
+            <tr>
+                <th>供应商名称</th>
+                <th>联系方式</th>
+                <th>地址</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 动态加载供应商数据 -->
+        </tbody>
+    </table>
+
+    <!-- 分页 -->
+    <nav>
+        <ul class="pagination justify-content-center" id="pagination">
+            <!-- 动态加载分页按钮 -->
+        </ul>
+    </nav>
+</div>
+
+<!-- 创建供应商模态框 -->
+<div class="modal fade" id="supplierCreateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="supplierCreateForm" method="post">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">创建供应商</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="supplierName" class="form-label">供应商名称</label>
+                        <input type="text" class="form-control" id="supplierName" name="name" placeholder="请输入供应商名称">
+                    </div>
+                    <div class="mb-3">
+                        <label for="supplierContact" class="form-label">联系方式</label>
+                        <input type="text" class="form-control" id="supplierContact" name="contact" placeholder="请输入联系方式">
+                    </div>
+                    <div class="mb-3">
+                        <label for="supplierAddress" class="form-label">地址</label>
+                        <input type="text" class="form-control" id="supplierAddress" name="address" placeholder="请输入地址">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑供应商模态框 -->
+<div class="modal fade" id="supplierEditModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="supplierEditForm" method="post">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">编辑供应商</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editSupplierName" class="form-label">供应商名称</label>
+                        <input type="text" class="form-control" id="editSupplierName" name="name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editSupplierContact" class="form-label">联系方式</label>
+                        <input type="text" class="form-control" id="editSupplierContact" name="contact">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editSupplierAddress" class="form-label">地址</label>
+                        <input type="text" class="form-control" id="editSupplierAddress" name="address">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const supplierTable = document.querySelector('#supplierTable tbody');
+        const pagination = document.querySelector('#pagination');
+        const searchInput = document.querySelector('#searchSupplier');
+
+        // 加载供应商数据
+        function loadSuppliers(page = 1, search = '') {
+            fetch(`/master_data/suppliers/list/?page=${page}&search=${search}`)
+                .then(response => response.json())
+                .then(data => {
+                    supplierTable.innerHTML = '';
+                    pagination.innerHTML = '';
+
+                    // 填充数据
+                    if (data.results.length === 0) {
+                        supplierTable.innerHTML = `
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">暂无供应商数据</td>
+                            </tr>`;
+                    } else {
+                        data.results.forEach(supplier => {
+                            supplierTable.innerHTML += `
+                                <tr>
+                                    <td>${supplier.name}</td>
+                                    <td>${supplier.contact}</td>
+                                    <td>${supplier.address}</td>
+                                    <td>
+                                        <button class="btn btn-warning btn-sm edit-supplier" 
+                                                data-id="${supplier.id}" 
+                                                data-name="${supplier.name}" 
+                                                data-contact="${supplier.contact}" 
+                                                data-address="${supplier.address}">
+                                            编辑
+                                        </button>
+                                        <button class="btn btn-danger btn-sm delete-supplier" data-id="${supplier.id}">删除</button>
+                                    </td>
+                                </tr>`;
+                        });
+                    }
+
+                    // 分页
+                    for (let i = 1; i <= data.total_pages; i++) {
+                        pagination.innerHTML += `
+                            <li class="page-item ${i === data.current_page ? 'active' : ''}">
+                                <button class="page-link">${i}</button>
+                            </li>`;
+                    }
+                });
+        }
+
+        // 初始化加载
+        loadSuppliers();
+
+        // 搜索供应商
+        searchInput.addEventListener('input', () => {
+            loadSuppliers(1, searchInput.value);
+        });
+
+        // 分页点击
+        pagination.addEventListener('click', e => {
+            if (e.target.tagName === 'BUTTON') {
+                loadSuppliers(parseInt(e.target.textContent), searchInput.value);
+            }
+        });
+
+        // 创建供应商
+        document.querySelector('#supplierCreateForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            fetch('/master_data/suppliers/create/', {
+                method: 'POST',
+                body: formData,
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('供应商创建成功！');
+                        loadSuppliers();
+                        // 获取模态框并关闭
+                        const modalElement = document.querySelector('#supplierCreateModal');
+                        const modalInstance = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+                        modalInstance.hide();
+                    } else {
+                        alert('创建失败：' + Object.values(data.errors).join('\n'));
+                    }
+                });
+        });
+
+        // 编辑供应商
+        supplierTable.addEventListener('click', e => {
+            if (e.target.classList.contains('edit-supplier')) {
+                const button = e.target;
+                const supplierId = button.dataset.id;
+
+                const editForm = document.querySelector('#supplierEditForm');
+                editForm.action = `/master_data/suppliers/edit/${supplierId}/`;
+
+                editForm.querySelector('#editSupplierName').value = button.dataset.name;
+                editForm.querySelector('#editSupplierContact').value = button.dataset.contact;
+                editForm.querySelector('#editSupplierAddress').value = button.dataset.address;
+
+                const editModal = new bootstrap.Modal(document.querySelector('#supplierEditModal'));
+                editModal.show();
+
+                // 添加提交事件处理
+                editForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    const formData = new FormData(this);
+
+                    fetch(this.action, {
+                        method: 'POST',
+                        body: formData,
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert('供应商更新成功！');
+                                loadSuppliers(); // 重新加载供应商列表
+
+                                // 关闭模态框
+                                editModal.hide();
+                            } else {
+                                alert('更新失败：' + Object.values(data.errors).join('\n'));
+                            }
+                        });
+                }, { once: true }); // 确保只绑定一次提交事件
+            }
+        });
+
+
+        // 删除供应商
+        supplierTable.addEventListener('click', e => {
+            if (e.target.classList.contains('delete-supplier')) {
+                const supplierId = e.target.dataset.id;
+
+                if (confirm('确定要删除该供应商吗？')) {
+                    fetch(`/master_data/suppliers/delete/${supplierId}/`, {
+                        method: 'DELETE',
+                        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert('供应商已删除');
+                                loadSuppliers();
+                            } else {
+                                alert('删除失败');
+                            }
+                        });
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

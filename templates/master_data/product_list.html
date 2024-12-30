@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}产品管理{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>产品管理</h2>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <form class="d-flex w-50" method="get" action="">
+            <input type="text" id="searchProduct" name="q" value="{{ query }}" class="form-control" placeholder="搜索产品编号，名称或类别">
+            <button type="submit" class="btn btn-primary ms-2">搜索</button>
+        </form>
+        
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#productCreateModal">
+            <i class="fas fa-plus"></i> 创建产品
+        </button>
+    </div>
+
+    <!-- 产品表格 -->
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>产品号</th>
+                <th>名称</th>
+                <th>类别</th>
+                <th>单价</th>
+                <th>容器材质</th>
+                <th>规格</th>
+                <th>香型</th>
+                <th>颜色</th>
+                <th>备注</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="productTableBody">
+            {% if products %}
+                {% for product in products %}
+                <tr id="row{{ product.id }}">
+                    <td>{{ product.product_code }}</td>
+                    <td>{{ product.name }}</td>
+                    <td>{{ product.category.name|default:"无" }}</td>
+                    <td>{{ product.unit_price }}</td>
+                    <td>{{ product.material }}</td>
+                    <td>{{ product.capacity }}</td>
+                    <td>{{ product.technology }}</td>
+                    <td>{{ product.color }}</td>
+                    <td>{{ product.remark }}</td>
+                    <td>
+                        <button class="btn btn-warning btn-sm edit-product-btn" data-id="{{ product.id }}">编辑</button>
+                        <button class="btn btn-danger btn-sm delete-product-btn" data-id="{{ product.id }}">删除</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+            <tr>
+                <td colspan="11" class="text-center text-muted">暂无产品数据</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ query }}">上一页</a>
+        </li>
+        {% endif %}
+        {% for num in page_obj.paginator.page_range %}
+        <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+            <a class="page-link" href="?page={{ num }}&q={{ query }}">{{ num }}</a>
+        </li>
+        {% endfor %}
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ query }}">下一页</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+
+<!-- 创建产品模态框 -->
+<div class="modal fade" id="productCreateModal" tabindex="-1" aria-labelledby="productCreateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="productCreateForm" method="post" action="{% url 'master_data:product_create_ajax' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="productCreateModalLabel">创建产品</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="id_name" class="form-label">产品名称</label>
+                            <input type="text" class="form-control" id="id_name" name="name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_category" class="form-label">类别</label>
+                            <select id="id_category" name="category" class="form-select">
+                                <option value="">请选择类别</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="new_category" class="form-label">新类别（可选）</label>
+                            <input type="text" class="form-control" id="new_category" name="new_category">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_unit_price" class="form-label">单价</label>
+                            <input type="number" step="0.01" class="form-control" id="id_unit_price" name="unit_price" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_material" class="form-label">容器材质</label>
+                            <input type="text" class="form-control" id="id_material" name="material">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_capacity" class="form-label">规格</label>
+                            <input type="text" class="form-control" id="id_capacity" name="capacity">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_technology" class="form-label">香型</label>
+                            <input type="text" class="form-control" id="id_technology" name="technology">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_color" class="form-label">颜色</label>
+                            <input type="text" class="form-control" id="id_color" name="color">
+                        </div>
+                        <div class="col-md-12">
+                            <label for="id_remark" class="form-label">备注</label>
+                            <textarea class="form-control" id="id_remark" name="remark" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // 创建产品
+        document.getElementById('productCreateForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const newCategory = document.getElementById('new_category').value;
+            if (newCategory) {
+                formData.append('new_category', newCategory);
+            }
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('创建失败: ' + JSON.stringify(data.errors));
+                }
+            });
+        });
+
+        document.querySelectorAll('.edit-product-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const id = this.dataset.id;
+        
+                fetch(`/master_data/products/edit/${id}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const form = document.getElementById('productCreateForm');
+                            document.getElementById('id_name').value = data.product.name;
+                            document.getElementById('id_unit_price').value = data.product.unit_price;
+                            document.getElementById('id_material').value = data.product.material || '';
+                            document.getElementById('id_capacity').value = data.product.capacity || '';
+                            document.getElementById('id_technology').value = data.product.technology || '';
+                            document.getElementById('id_color').value = data.product.color || '';
+                            document.getElementById('id_remark').value = data.product.remark || '';
+        
+                            // 设置类别
+                            const categorySelect = document.getElementById('id_category');
+                            categorySelect.innerHTML = '<option value="">请选择类别</option>';
+                            data.categories.forEach(category => {
+                                categorySelect.innerHTML += `
+                                    <option value="${category.id}" ${category.id == data.product.category ? 'selected' : ''}>
+                                        ${category.name}
+                                    </option>`;
+                            });
+        
+                            // 修改模态框标题和表单操作 URL
+                            document.getElementById('productCreateModalLabel').textContent = '编辑产品';
+                            form.action = `/master_data/products/edit/${id}/`;
+        
+                            // 显示模态框
+                            new bootstrap.Modal(document.getElementById('productCreateModal')).show();
+                        } else {
+                            alert('加载失败');
+                        }
+                    });
+            });
+        });
+        
+
+        // 删除产品
+        document.querySelectorAll('.delete-product-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const id = this.dataset.id;
+                if (confirm('确定删除此产品？')) {
+                    fetch("{% url 'master_data:product_delete_ajax' pk=0 %}".replace('0', id), {
+                        method: 'DELETE',
+                        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            document.getElementById('row' + id).remove();
+                        } else {
+                            alert('删除失败');
+                        }
+                    });
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

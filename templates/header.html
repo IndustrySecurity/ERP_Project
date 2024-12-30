@@ -1,0 +1,39 @@
+<header class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top shadow">
+    <div class="container-fluid">
+        <!-- 品牌与切换按钮 -->
+        <a class="navbar-brand" href="#">苏州青岑科技ERP系统</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <!-- 导航菜单 -->
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                {% if user.is_authenticated %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'logout' %}">登出</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link disabled" href="#">欢迎, {{ user.username }}</a>
+                </li>
+                {% else %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'login' %}">登录</a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <!-- 动态时间显示 -->
+        <span class="text-light ms-3" id="current-time"></span>
+    </div>
+</header>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        setInterval(function () {
+            const now = new Date();
+            document.getElementById('current-time').textContent = now.toLocaleTimeString();
+        }, 1000);
+    });
+</script>

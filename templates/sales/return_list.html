@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>销售退库列表</h2>
+
+    <!-- 检索和创建按钮 -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <form method="get" class="mb-3">
+            <input type="text" name="q" class="form-control" placeholder="搜索退库单编号、订单编号或备注" value="{{ request.GET.q }}">
+        </form>        
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#returnModal">
+            <i class="fas fa-box"></i> 创建退库
+        </button>
+    </div>
+
+    <!-- 退库记录表 -->
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>退库单编号</th>
+                <th>订单编号</th>
+                <th>产品</th>
+                <th>仓库位置</th>
+                <th>退库数量</th>
+                <th>退库日期</th>
+                <th>备注</th>
+                <th>创建人</th>
+                <th>创建时间</th>
+            </tr>
+        </thead>
+        <tbody id="returnTableBody">
+            {% for return_record in returns %}
+            <tr>
+                <td>{{ return_record.return_number }}</td>
+                <td>{{ return_record.order.order_number }}</td>
+                <td>{{ return_record.product.name }}</td>
+                <td>{{ return_record.location.name }}</td>
+                <td>{{ return_record.quantity }}</td>
+                <td>{{ return_record.date }}</td>
+                <td>{{ return_record.remarks|default:"无" }}</td>
+                <td>{{ return_record.created_by.username|default:"-" }}</td>
+                <td>{{ return_record.created_at|date:"Y-m-d H:i:s" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="9" class="text-center text-muted">暂无退库记录</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        
+    </table>
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ request.GET.q }}">上一页</a>
+            </li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}&q={{ request.GET.q }}">{{ num }}</a>
+            </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ request.GET.q }}">下一页</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    
+</div>
+
+<!-- 创建退库模态框 -->
+<div class="modal fade" id="returnModal" tabindex="-1" aria-labelledby="returnModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="returnForm">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="returnModalLabel">创建销售退库</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <!-- 选择订单 -->
+                        <div class="col-md-6">
+                            <label for="returnOrder" class="form-label">选择订单</label>
+                            <select id="returnOrder" name="order" class="form-select" required>
+                                <option value="">请选择订单</option>
+                                {% for order in orders %}
+                                <option value="{{ order.id }}">{{ order.order_number }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <!-- 仓库位置 -->
+                        <div class="col-md-6">
+                            <label for="returnLocation" class="form-label">仓库位置</label>
+                            <select id="returnLocation" name="location" class="form-select" required>
+                                <option value="">请选择仓库</option>
+                                {% for location in locations %}
+                                <option value="{{ location.id }}">{{ location.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <!-- 产品项 -->
+                        <div id="orderProducts" class="col-md-12 mt-3">
+                            <!-- 动态加载产品项 -->
+                        </div>
+                        <!-- 备注 -->
+                        <div class="col-md-12">
+                            <label for="returnRemarks" class="form-label">备注</label>
+                            <textarea id="returnRemarks" name="remarks" class="form-control"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // 搜索功能
+
+        // 动态加载产品项
+        document.getElementById('returnOrder').addEventListener('change', function () {
+            const orderId = this.value; // 获取选择的订单 ID
+            if (!orderId) {
+                document.getElementById('orderProducts').innerHTML = '<p class="text-muted">请先选择订单</p>';
+                return;
+            }
+        
+            // 发起 AJAX 请求加载订单项
+            fetch(`/sales/orders/${orderId}/products/`)
+            .then(response => response.json())
+            .then(data => {
+                const productsDiv = document.getElementById('orderProducts');
+                if (data.success && data.results.length > 0) {
+                    productsDiv.innerHTML = `<label class="form-label">订单产品项</label>`;
+                    data.results.forEach(item => {
+                        productsDiv.innerHTML += `
+                            <div class="row align-items-center mb-3">
+                                <div class="col-md-4">
+                                    <span>${item.product_name}</span>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="hidden" name="product_ids[]" value="${item.product_id}">
+                                    <input type="number" name="quantities[]" class="form-control" placeholder="输入退库数量" min="0" max="${item.quantity}" value="0">
+                                </div>
+                                <div class="col-md-4 text-muted">
+                                    销售数量: ${item.quantity}
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    productsDiv.innerHTML = `<p class="text-danger">此订单无可用产品项</p>`;
+                }
+            })
+            .catch(() => {
+                document.getElementById('orderProducts').innerHTML = `<p class="text-danger">加载失败，请稍后重试</p>`;
+            });
+        
+        });
+        
+
+        // 表单提交
+        document.getElementById('returnForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            fetch("{% url 'sales:return_create' %}", {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('保存失败: ' + data.message);
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

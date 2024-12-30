@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>销售出库列表</h2>
+
+    <!-- 检索和创建按钮 -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <input type="text" id="searchDelivery" class="form-control w-50" placeholder="搜索出库单编号、订单编号或备注">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#deliveryModal">
+            <i class="fas fa-box"></i> 创建出库
+        </button>
+    </div>
+
+    <!-- 出库记录表 -->
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>出库单编号</th>
+                <th>订单编号</th>
+                <th>仓库位置</th>
+                <th>出库日期</th>
+                <th>备注</th>
+                <th>出库项</th>
+                <th>创建人</th>
+                <th>创建时间</th>
+                <th>更新人</th>
+                <th>更新时间</th>
+            </tr>
+        </thead>
+        <tbody id="deliveryTableBody">
+            {% for delivery in deliveries %}
+            <tr>
+                <td>{{ delivery.delivery_number }}</td>
+                <td>{{ delivery.order.order_number }}</td>
+                <td>{{ delivery.location.name }}</td>
+                <td>{{ delivery.date }}</td>
+                <td>{{ delivery.remarks|default:"无" }}</td>
+                <td>
+                    <ul>
+                        {% for item in delivery.salesdeliveryitem_set.all %}
+                        <li>{{ item.product.name }} - {{ item.quantity }}</li>
+                        {% endfor %}
+                    </ul>
+                </td>
+                <td>{{ delivery.created_by.username }}</td>
+                <td>{{ delivery.created_at }}</td>
+                <td>{{ delivery.updated_by.username }}</td>
+                <td>{{ delivery.updated_at }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="10" class="text-center text-muted">暂无出库记录</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <nav>
+        <ul class="pagination">
+            {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">&laquo;</a></li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if page_obj.number == num %}active{% endif %}"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">&raquo;</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+
+<!-- 创建出库模态框 -->
+<div class="modal fade" id="deliveryModal" tabindex="-1" aria-labelledby="deliveryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="deliveryForm">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deliveryModalLabel">创建销售出库</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="deliveryOrder" class="form-label">选择订单</label>
+                            <select id="deliveryOrder" name="order" class="form-select" required>
+                                <option value="">请选择订单</option>
+                                {% for order in orders %}
+                                <option value="{{ order.id }}">{{ order.order_number }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="deliveryLocation" class="form-label">仓库位置</label>
+                            <select id="deliveryLocation" name="location" class="form-select" required>
+                                <option value="">请选择仓库</option>
+                                {% for location in locations %}
+                                <option value="{{ location.id }}">{{ location.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+             <!-- 动态加载订单项表格 -->
+<div id="orderItems" class="mt-3">
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>产品名称</th>
+                <th>订单数量</th>
+                <th id="stockHeader" style="display: none;">可用库存</th>
+                <th>出库数量</th>
+            </tr>
+        </thead>
+        <tbody id="orderItemsTableBody">
+            <!-- 动态填充 -->
+        </tbody>
+    </table>
+</div>
+
+                        <div class="col-md-12">
+                            <label for="deliveryRemarks" class="form-label">备注</label>
+                            <textarea id="deliveryRemarks" name="remarks" class="form-control"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // 搜索功能
+            // 搜索功能
+        document.getElementById('searchDelivery').addEventListener('input', function () {
+            const query = this.value.toLowerCase();
+            document.querySelectorAll('#deliveryTableBody tr').forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
+            });
+        });
+
+        const orderDropdown = document.getElementById('deliveryOrder');
+        const locationDropdown = document.getElementById('deliveryLocation');
+        const tableBody = document.getElementById('orderItemsTableBody');
+        const stockHeader = document.getElementById('stockHeader');
+
+        // 当选择订单时加载订单项
+        orderDropdown.addEventListener('change', function () {
+            const orderId = this.value;
+            tableBody.innerHTML = ''; // 清空表格内容
+
+            if (!orderId) return;
+
+            fetch(`/sales/orders/${orderId}/items/`)
+                .then(response => response.json())
+                .then(data => {
+                    data.results.forEach(item => {
+                        const row = `
+                            <tr data-product-id="${item.product_id}">
+                                <td>${item.product_name}</td>
+                                <td>${item.quantity}</td>
+                                <td class="stock-info" style="display: none;">--</td>
+                                <td>
+                                    <input type="number" class="form-control" 
+                                           name="items[${item.product_id}][quantity]" 
+                                           placeholder="出库数量" max="${item.quantity}" required>
+                                </td>
+                            </tr>
+                        `;
+                        tableBody.innerHTML += row;
+                    });
+                });
+        });
+
+        // 当选择仓库时加载库存信息
+        locationDropdown.addEventListener('change', function () {
+            const locationId = this.value;
+
+            if (!locationId) {
+                document.querySelectorAll('.stock-info').forEach(cell => {
+                    cell.style.display = 'none';
+                });
+                stockHeader.style.display = 'none'; // 隐藏表头库存列
+                return;
+            }
+
+            stockHeader.style.display = ''; // 显示表头库存列
+
+            // 更新每个产品的库存信息
+            document.querySelectorAll('#orderItemsTableBody tr').forEach(row => {
+                const productId = row.dataset.productId;
+                const stockCell = row.querySelector('.stock-info');
+                stockCell.style.display = ''; // 显示库存列
+
+                fetch(`/warehouse/stock/${locationId}/${productId}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        stockCell.textContent = data.stock_quantity || 0;
+                        const quantityInput = row.querySelector('input[name^="items"]');
+                        const maxStock = Math.min(data.stock_quantity || 0, parseInt(quantityInput.getAttribute('max')) || 0);
+                        quantityInput.setAttribute('max', maxStock);
+                    })
+                    .catch(() => {
+                        stockCell.textContent = '加载失败';
+                    });
+            });
+        });
+
+        // 表单提交
+        document.getElementById('deliveryForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            fetch("{% url 'sales:delivery_create' %}", {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('保存失败: ' + data.message);
+                }
+            });
+        });
+    });
+</script>
+
+{% endblock %}
