@@ -1,0 +1,90 @@
+# Core Django dependencies
+Django==3.2.25  # 指定你的 Django 版本
+
+# Database dependencies (MySQL example, adjust if using PostgreSQL or SQLite)
+mysqlclient==2.1.1  # 如果使用 MySQL
+# psycopg2-binary==2.9.6  # 如果使用 PostgreSQL（可选）
+
+# Timezone and localization support
+pytz==2023.3
+tzdata==2023.3  # 如果使用 Python >=3.9，可能需要
+
+# Pagination and utility tools
+django-filter==22.1
+django-tables2==2.5.1  # 用于表格显示（可选）
+
+# Frontend integration (if using Bootstrap, crispy-forms, etc.)
+django-crispy-forms==1.14.0
+crispy-bootstrap5==0.6  # 如果使用 Bootstrap 5
+
+# REST API support (if applicable)
+djangorestframework==3.14.0
+drf-yasg==1.21.5  # API 文档生成（Swagger）
+
+# Caching (optional)
+django-redis==5.3.0  # Redis 缓存支持
+redis==4.5.5
+
+# Security and authentication
+django-allauth==0.55.0  # 用户注册和认证（可选）
+djangorestframework-simplejwt==5.3.2  # JWT 支持
+
+# Testing
+pytest==7.4.2
+pytest-django==4.5.2
+factory_boy==3.2.1  # 测试数据生成
+
+# Static file handling
+whitenoise==6.5.0  # 用于管理静态文件
+
+# Task scheduling and background jobs
+celery==5.3.1  # 异步任务支持
+django-celery-beat==2.5.0  # 定时任务支持
+django-celery-results==2.5.1  # 任务结果存储
+
+# File handling (if dealing with media uploads)
+Pillow==10.1.0
+
+# Pagination
+django-pagination==1.2.0  # 简单分页支持
+
+# Excel or CSV handling
+openpyxl==3.1.2  # 处理 Excel 文件
+pandas==2.1.1  # 数据处理
+django-import-export==3.2.0  # 导入导出工具
+
+# Frontend enhancement
+django-bootstrap4==22.3  # 如果使用 Bootstrap 4
+django-bootstrap5==23.3  # 如果使用 Bootstrap 5
+
+# Development tools
+ipython==8.17.2  # 交互式开发环境
+autopep8==2.0.3  # 代码格式化工具
+black==23.9.1  # Python 代码格式化
+isort==5.12.0  # Python 导入排序
+django-debug-toolbar==3.8.1  # 调试工具
+
+# Deployment tools
+gunicorn==21.2.0  # 生产环境 WSGI 服务器
+psutil==5.9.5  # 系统监控工具
+
+# Other utilities
+six==1.16.0
+python-decouple==3.8  # 用于读取环境变量
+django-environ==0.10.0  # 另一种环境变量工具
+requests==2.31.0  # HTTP 请求支持
+
+# Optional: Visualization (if needed)
+django-chartjs==3.0.3  # 前端图表显示
+
+# Optional: Full-text search (if needed)
+django-haystack==3.3.1
+whoosh==2.7.4  # 使用 Whoosh 作为全文搜索引擎
+elasticsearch==8.11.2  # 使用 Elasticsearch
+
+# Optional: File storage (if using cloud storage)
+boto3==1.28.15  # AWS S3 支持
+django-storages==1.13.3
+
+# Optional: Excel enhancements
+xlrd==2.0.1  # 读取 .xls 文件
