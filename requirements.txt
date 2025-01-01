@@ -1,90 +1,60 @@
 # Core Django dependencies
-Django==3.2.25  # 指定你的 Django 版本
+Django==3.2.25  # Django LTS，支持 Python 3.7+
 
-# Database dependencies (MySQL example, adjust if using PostgreSQL or SQLite)
-mysqlclient==2.1.1  # 如果使用 MySQL
-# psycopg2-binary==2.9.6  # 如果使用 PostgreSQL（可选）
+# Database dependencies (MySQL or PostgreSQL)
+mysqlclient==2.1.1  # MySQL 支持
+# psycopg2-binary==2.9.6  # PostgreSQL 支持
 
 # Timezone and localization support
-pytz==2023.3
-tzdata==2023.3  # 如果使用 Python >=3.9，可能需要
+pytz==2023.3  # 时区支持
 
 # Pagination and utility tools
-django-filter==22.1
-django-tables2==2.5.1  # 用于表格显示（可选）
+django-filter==21.1  # 支持过滤功能
 
-# Frontend integration (if using Bootstrap, crispy-forms, etc.)
-django-crispy-forms==1.14.0
-crispy-bootstrap5==0.6  # 如果使用 Bootstrap 5
+# Frontend integration
+django-crispy-forms==1.14.0  # 表单样式增强
+crispy-bootstrap5==0.6  # 使用 Bootstrap 5 的支持
 
-# REST API support (if applicable)
-djangorestframework==3.14.0
-drf-yasg==1.21.5  # API 文档生成（Swagger）
+# REST API support
+djangorestframework==3.14.0  # Django REST 框架
+djangorestframework-simplejwt==4.8.0  # JWT 支持（兼容 Python 3.7+）
+drf-yasg==1.21.5  # API 文档生成工具
 
-# Caching (optional)
-django-redis==5.3.0  # Redis 缓存支持
-redis==4.5.5
+# Caching support
+django-redis==5.2.0  # Redis 支持
+redis==4.5.5  # Redis 客户端库
 
 # Security and authentication
-django-allauth==0.55.0  # 用户注册和认证（可选）
-djangorestframework-simplejwt==5.3.2  # JWT 支持
+django-allauth==0.44.0  # 用户认证和注册支持（兼容 Python 3.7+）
 
-# Testing
-pytest==7.4.2
-pytest-django==4.5.2
-factory_boy==3.2.1  # 测试数据生成
-
-# Static file handling
-whitenoise==6.5.0  # 用于管理静态文件
-
-# Task scheduling and background jobs
-celery==5.3.1  # 异步任务支持
-django-celery-beat==2.5.0  # 定时任务支持
-django-celery-results==2.5.1  # 任务结果存储
-
-# File handling (if dealing with media uploads)
-Pillow==10.1.0
-
-# Pagination
-django-pagination==1.2.0  # 简单分页支持
+# Static files and file handling
+whitenoise==6.4.0  # 静态文件支持
+Pillow==9.5.0  # 图像处理库
 
 # Excel or CSV handling
-openpyxl==3.1.2  # 处理 Excel 文件
-pandas==2.1.1  # 数据处理
-django-import-export==3.2.0  # 导入导出工具
-
-# Frontend enhancement
-django-bootstrap4==22.3  # 如果使用 Bootstrap 4
-django-bootstrap5==23.3  # 如果使用 Bootstrap 5
+openpyxl==3.1.2  # Excel 文件处理
+pandas==1.5.3  # 数据处理工具，兼容 Python 3.7+
+django-import-export==3.1.0  # 数据导入导出支持
 
 # Development tools
-ipython==8.17.2  # 交互式开发环境
-autopep8==2.0.3  # 代码格式化工具
-black==23.9.1  # Python 代码格式化
-isort==5.12.0  # Python 导入排序
-django-debug-toolbar==3.8.1  # 调试工具
+ipython==8.14.0  # 交互式开发环境
+autopep8==1.7.0  # 代码格式化
+isort==5.10.1  # 导入排序
+django-debug-toolbar==3.5.0  # Django 调试工具
 
 # Deployment tools
-gunicorn==21.2.0  # 生产环境 WSGI 服务器
-psutil==5.9.5  # 系统监控工具
+gunicorn==20.1.0  # 生产环境 WSGI 服务器
 
-# Other utilities
-six==1.16.0
-python-decouple==3.8  # 用于读取环境变量
-django-environ==0.10.0  # 另一种环境变量工具
-requests==2.31.0  # HTTP 请求支持
-
-# Optional: Visualization (if needed)
-django-chartjs==3.0.3  # 前端图表显示
+# Optional: Testing tools
+pytest==7.2.2  # 测试框架
+pytest-django==4.5.2  # Django 测试支持
+factory_boy==3.2.1  # 测试数据生成工具
 
 # Optional: Full-text search (if needed)
-django-haystack==3.3.1
+django-haystack==3.2.0  # 全文搜索支持
 whoosh==2.7.4  # 使用 Whoosh 作为全文搜索引擎
-elasticsearch==8.11.2  # 使用 Elasticsearch
 
-# Optional: File storage (if using cloud storage)
-boto3==1.28.15  # AWS S3 支持
-django-storages==1.13.3
-
-# Optional: Excel enhancements
-xlrd==2.0.1  # 读取 .xls 文件
+# Optional: Task scheduling and background jobs
+celery==5.2.7  # 异步任务队列，兼容 Python 3.7+
+django-celery-beat==2.2.1  # 定时任务支持
+django-celery-results==2.2.0  # 任务结果存储
