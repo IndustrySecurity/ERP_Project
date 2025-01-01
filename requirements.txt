@@ -31,12 +31,6 @@ Pillow==9.5.0  # 图像处理库
 
 # Excel or CSV handling
 openpyxl==3.1.2  # Excel 文件处理
-django-import-export==3.1.0  # 数据导入导出支持
-
-# Development tools
-ipython==8.14.0  # 交互式开发环境
-autopep8==1.7.0  # 代码格式化
-isort==5.10.1  # 导入排序
 django-debug-toolbar==3.5.0  # Django 调试工具
 
 # Deployment tools
