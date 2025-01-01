@@ -17,7 +17,6 @@ crispy-bootstrap5==0.6  # 使用 Bootstrap 5 的支持
 
 # REST API support
 djangorestframework==3.14.0  # Django REST 框架
-djangorestframework-simplejwt==4.8.0  # JWT 支持（兼容 Python 3.7+）
 drf-yasg==1.21.5  # API 文档生成工具
 
 # Caching support
@@ -25,7 +24,6 @@ django-redis==5.2.0  # Redis 支持
 redis==4.5.5  # Redis 客户端库
 
 # Security and authentication
-django-allauth==0.44.0  # 用户认证和注册支持（兼容 Python 3.7+）
 
 # Static files and file handling
 whitenoise==6.4.0  # 静态文件支持
@@ -33,7 +31,6 @@ Pillow==9.5.0  # 图像处理库
 
 # Excel or CSV handling
 openpyxl==3.1.2  # Excel 文件处理
-pandas==1.5.3  # 数据处理工具，兼容 Python 3.7+
 django-import-export==3.1.0  # 数据导入导出支持
 
 # Development tools
