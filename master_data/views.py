@@ -3,8 +3,8 @@ from django.core.paginator import Paginator
 from django.db.models import Max, Q
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from .models import Material, Product, Recipe, Supplier, Customer, RecipeMaterial, MaterialCategory, ProductCategory
-from .forms import MaterialForm, ProductForm, RecipeForm, SupplierForm, CustomerForm
+from .models import Material, Product, Recipe, Supplier, Customer, RecipeMaterial, MaterialCategory, ProductCategory, ProductionLine
+from .forms import MaterialForm, ProductForm, RecipeForm, SupplierForm, CustomerForm, ProductionLineForm
 
 def material_list(request):
     """
@@ -399,7 +399,6 @@ def recipe_create(request):
             product = Product.objects.get(id=product_id)
             recipe = Recipe(product=product, description=description)
             recipe.save()
-
             for material_id, quantity in zip(materials_data, quantities):
                 material = Material.objects.get(id=material_id)
                 RecipeMaterial.objects.create(recipe=recipe, material=material, quantity=quantity)
@@ -420,6 +419,7 @@ def recipe_update(request, pk):
         materials = recipe.recipematerial_set.all().values(
             'material__id', 'material__name', 'quantity'
         )
+
         return JsonResponse({
             'success': True,
             'recipe': {
@@ -434,9 +434,13 @@ def recipe_update(request, pk):
         description = request.POST.get('description', '')
         materials_data = request.POST.getlist('materials')
         quantities = request.POST.getlist('quantities')
-
-        recipe.description = description
-        recipe.recipematerial_set.all().delete()  # 删除旧的材料关联
+        product_id = request.POST.get('product')
+        #删除原配方，新建配方
+        recipe.delete()
+        product = Product.objects.get(id=product_id)
+        recipe = Recipe(product=product, description=description)
+        recipe.save()
+        # recipe.recipematerial_set.all().delete()  # 删除旧的材料关联
 
         try:
             for material_id, quantity in zip(materials_data, quantities):
@@ -523,6 +527,74 @@ def supplier_delete_ajax(request, pk):
     if request.method == 'DELETE':
         supplier.delete()
         return JsonResponse({'success': True, 'message': '供应商删除成功'})
+    return JsonResponse({'success': False, 'message': '仅支持DELETE请求'})
+
+def production_line_list(request):
+    """展示产线列表"""
+    production_lines = ProductionLine.objects.all()
+    form = ProductionLineForm()
+    return render(request, 'master_data/production_line_list.html', {'production_lines': production_lines, 'form': form})
+
+
+def production_line_list_ajax(request):
+    """AJAX请求，获取产线列表"""
+    search_query = request.GET.get('search', '')
+    page = int(request.GET.get('page', 1))
+    page_size = 10  # 每页显示的产线数量
+
+    production_lines = ProductionLine.objects.filter(name__icontains=search_query)
+    total_count = production_lines.count()
+    production_lines = production_lines[(page - 1) * page_size: page * page_size]
+
+    results = [
+        {
+            'id': production_line.id,
+            'name': production_line.name,
+            'description': production_line.description,
+        } for production_line in production_lines
+    ]
+
+    return JsonResponse({
+        'results': results,
+        'current_page': page,
+        'total_pages': (total_count + page_size - 1) // page_size,
+    })
+
+
+@csrf_exempt
+def production_line_create_ajax(request):
+    """AJAX请求，创建产线"""
+    if request.method == 'POST':
+        form = ProductionLineForm(request.POST)
+        if form.is_valid():
+            production_line = form.save()
+            return JsonResponse({'success': True, 'message': '产线创建成功', 'id': production_line.id})
+        else:
+            return JsonResponse({'success': False, 'errors': form.errors})
+    return JsonResponse({'success': False, 'message': '仅支持POST请求'})
+
+
+@csrf_exempt
+def production_line_edit_ajax(request, pk):
+    """AJAX请求，编辑产线"""
+    production_line = get_object_or_404(ProductionLine, pk=pk)
+    if request.method == 'POST':
+        form = ProductionLineForm(request.POST, instance=production_line)
+        if form.is_valid():
+            form.save()
+            return JsonResponse({'success': True, 'message': '产线更新成功'})
+        else:
+            return JsonResponse({'success': False, 'errors': form.errors})
+    return JsonResponse({'success': False, 'message': '仅支持POST请求'})
+
+
+@csrf_exempt
+def production_line_delete_ajax(request, pk):
+    """AJAX请求，删除产线"""
+    production_line = get_object_or_404(ProductionLine, pk=pk)
+    if request.method == 'DELETE':
+        production_line.delete()
+        return JsonResponse({'success': True, 'message': '产线删除成功'})
     return JsonResponse({'success': False, 'message': '仅支持DELETE请求'})
 
 # 通用创建视图

@@ -89,6 +89,8 @@
                                 <option value="">请选择订单</option>
                                 {% for order in orders %}
                                 <option value="{{ order.id }}">{{ order.order_number }}</option>
+                                {% empty %}
+                                <option value="" disabled>暂无可选择的订单</option>
                                 {% endfor %}
                             </select>
                         </div>

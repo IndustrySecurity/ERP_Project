@@ -36,4 +36,11 @@ urlpatterns = [
     path('customers/create/', views.customer_create, name='customer_create'),
     path('customers/<int:pk>/edit/', views.customer_edit, name='customer_edit'),
     path('customers/<int:pk>/delete/', views.customer_delete, name='customer_delete'),
+
+    #产线
+    path('production_lines/', views.production_line_list, name='production_line_list'),
+    path('production_lines/create/', views.production_line_create_ajax, name='production_line_create_ajax'),
+    path('production_lines/edit/<int:pk>/', views.production_line_edit_ajax, name='production_line_edit_ajax'),
+    path('production_lines/delete/<int:pk>/', views.production_line_delete_ajax, name='production_line_delete_ajax'),
+    path('production_lines/ajax/', views.production_line_list_ajax, name='production_line_list_ajax'),
 ]

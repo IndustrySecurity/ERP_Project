@@ -190,7 +190,7 @@ def order_edit(request, order_id):
 
 def delivery_list(request):
     deliveries = SalesDelivery.objects.select_related('order', 'location', 'created_by', 'updated_by').all()
-    orders = SalesOrder.objects.all()
+    orders = SalesOrder.objects.filter(status='pending')
     locations = WarehouseLocation.objects.all()
 
     paginator = Paginator(deliveries, 10)

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生产入库列表</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-4">生产入库列表</h1>
+        <p>{{ custom_message }}</p>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>产品</th>
+                    <th>入库数量</th>
+                    <th>入库日期</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for warehousing in warehousings %}
+                <tr>
+                    <td>{{ warehousing.product.product_name }}</td>
+                    <td>{{ warehousing.quantity_warehoused }}</td>
+                    <td>{{ warehousing.warehousing_date }}</td>
+                    <td>
+                        <a href="{% url 'production:warehousing_update' warehousing.pk %}" class="btn btn-primary btn-sm">编辑</a>
+                        <a href="{% url 'production:warehousing_delete' warehousing.pk %}" class="btn btn-danger btn-sm">删除</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center">暂无入库记录</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <a href="{% url 'production:warehousing_create' %}" class="btn btn-success">添加入库记录</a>
+    </div>
+</body>
+</html>
+
+{% endblock %}

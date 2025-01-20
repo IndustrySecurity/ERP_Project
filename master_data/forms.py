@@ -1,5 +1,5 @@
 from django import forms
-from .models import Material, Product, Recipe, RecipeMaterial, Supplier, Customer, MaterialCategory, ProductCategory
+from .models import Material, Product, Recipe, RecipeMaterial, Supplier, Customer, MaterialCategory, ProductCategory, ProductionLine
 
 class MaterialForm(forms.ModelForm):
     new_category = forms.CharField(
@@ -74,4 +74,13 @@ class CustomerForm(forms.ModelForm):
             'grade': forms.Select(attrs={'class': 'form-select'}),
             'company': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '公司名称'}),
             'remarks': forms.Textarea(attrs={'class': 'form-control', 'placeholder': '备注'}),
+        }
+
+class ProductionLineForm(forms.ModelForm):
+    class Meta:
+        model = ProductionLine
+        fields = ['name', 'description']  # 包含的字段
+        labels = {
+            'name': '产线名称',       # 字段标签
+            'description': '描述',   # 字段标签
         }

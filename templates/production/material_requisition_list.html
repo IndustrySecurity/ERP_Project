@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>领料单列表</h2>
+
+    <!-- 检索框 -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <input type="text" id="searchRequisition" class="form-control w-50" placeholder="搜索工单编号">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#requisitionModal" id="createRequisitionButton">
+            <i class="fas fa-receipt"></i> 创建领料单
+        </button>
+    </div>
+
+    <!-- 领料单表格 -->
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>领料单编号</th>
+                <th>工单编号</th>
+                <th>材料详情</th>
+                <th>负责人</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        
+        <tbody id="requisitionTableBody">
+            {% for requisition in requisitions %}
+            <tr id="requisition-{{ requisition.pk }}">
+                <td>{{ requisition.materialrequisition_number }}</td>
+                <td>{{ requisition.production_order.order_number }}</td>
+                <td>
+                    {% for material in requisition.productionmaterial_set.all %}
+                        {{ material.material.name }} - 数量: {{ material.quantity }} <br>
+                    {% endfor %}
+                </td>
+                <td>{{ requisition.responsible_person.username }}</td> 
+                <td>
+                    <button class="btn btn-warning btn-sm edit-requisition" data-id="{{ requisition.pk }}">编辑</button>
+                    <button class="btn btn-danger btn-sm delete-requisition" data-id="{{ requisition.pk }}">删除</button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center text-muted">暂无领料单</td> <!-- 更新合并的列数 -->
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">上一页</a>
+            </li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}">下一页</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+
+<!-- 创建/编辑领料单模态框 -->
+<div class="modal fade" id="requisitionModal" tabindex="-1" aria-labelledby="requisitionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="requisitionModalLabel">创建领料单</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="requisitionForm" action="/production/requisitions/create/" method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="production_order" class="form-label">生产工单</label>
+                        <select class="form-select" name="production_order" id="productionOrderSelect" required>
+                            <option value="">选择生产工单</option>
+                            {% for order in production_orders %}
+                                <option value="{{ order.id }}">{{ order.order_number }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="responsible_person" class="form-label">负责人</label>
+                        <select class="form-select" name="responsible_person" id="responsible_personSelect" required>
+                            <option value="">选择负责人</option>
+                            {% for user in users %}
+                                <option value="{{ user.id }}">{{ user.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>材料</th>
+                                    <th>数量</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for required_material in required_materials %}
+                                <tr>
+                                    <td>{{ required_material.material.name }}</td>
+                                    <td>
+                                        <input type="hidden" name="materials" value="{{ required_material.material.id }}">
+                                        <input type="number" class="form-control" name="quantities" value="{{ required_material.quantity }}" required>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-success" id="saveRequisitionButton">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 检索功能
+        document.getElementById("searchRequisition").addEventListener("input", function () {
+            const query = this.value.toLowerCase();
+            document.querySelectorAll("#requisitionTableBody tr").forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
+            });
+        });
+        
+        //监听生产工单选择变化
+        const productionOrderSelect = document.getElementById("productionOrderSelect");
+        const requisitionForm = document.getElementById("requisitionForm");
+        const tableBody = requisitionForm.querySelector("tbody");
+
+        productionOrderSelect.addEventListener("change", function() {
+            const productionOrderId = this.value;
+            
+            if (productionOrderId) {
+                // 清空表格
+                tableBody.innerHTML = '';
+                
+                // 发送 AJAX 请求获取所需材料
+                fetch(`/production/requisitions/get_materials/${productionOrderId}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            data.required_materials.forEach(material => {
+                                const row = document.createElement("tr");
+                                row.innerHTML = `
+                                    <td>${material.material_name}</td>
+                                    <td>
+                                        <input type="hidden" name="materials" value="${material.material_id}">
+                                        <input type="number" class="form-control" name="quantities" value="${material.quantity}" required>
+                                    </td>
+                                `;
+                                tableBody.appendChild(row);
+                            });
+                        } else {
+                            alert("无法获取材料信息，请重试。");
+                        }
+                    })
+                    .catch(error => {
+                        console.error("获取材料时发生错误：", error);
+                        alert("发生错误，请重试。");
+                    });
+            }
+        });
+        // 监听创建领料单按钮
+        document.getElementById('createRequisitionButton').addEventListener('click', function() {
+            document.getElementById('requisitionForm').reset(); // 重置表单
+            document.getElementById('requisitionModalLabel').innerText = '创建领料单'; // 设置为创建标题
+            document.getElementById('requisitionForm').action = '/production/requisitions/create/'; // 设置 action 为创建接口
+        });
+        
+        // 监听编辑按钮
+        document.querySelectorAll('.edit-requisition').forEach(button => {
+            button.addEventListener('click', function () {
+                document.getElementById('requisitionModalLabel').innerText = '编辑领料单'; // 设置为编辑标题
+                const requisitionId = this.getAttribute('data-id'); // 获取领料单 ID
+        
+                // 动态设置表单的 action URL，根据领料单 ID 指向编辑接口
+                const requisitionForm = document.getElementById('requisitionForm');
+                requisitionForm.action = `/production/requisitions/edit/${requisitionId}/`; // 设置表单提交 URL
+                
+                // 使用 Fetch API 加载领料单数据
+                fetch(`/production/requisitions/view/${requisitionId}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // 填充表单字段 
+                            document.getElementById('productionOrderSelect').value = data.requisition.production_order.id; // 生产工单 ID
+                            document.getElementById('quantities').value = data.requisition.quantities; // 数量
+                            
+                            // 填充材料字段
+                            const materialsSelected = data.requisition.productionmaterial_set.map(material => material.material.id);
+                            materialsSelected.forEach(materialId => {
+                                const option = document.querySelector(`#materialsSelect option[value="${materialId}"]`);
+                                if (option) {
+                                    option.selected = true;
+                                }
+                            });
+                            
+                            // 显示模态框
+                            new bootstrap.Modal(document.getElementById('requisitionModal')).show();
+                        } else {
+                            alert('加载失败: ' + (data.message || '未知错误'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('请求失败:', error);
+                        alert('加载领料单失败，请检查网络或联系管理员');
+                    });
+            });
+        });
+
+        // 监听表单提交事件
+        document.getElementById('requisitionForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const actionUrl = this.action; // 动态获取当前 form 的 action
+            fetch(actionUrl, {
+                method: "POST",
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}', // 确保 CSRF 令牌被发送
+                },
+                body: formData,
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(actionUrl.includes("create") ? "领料单创建成功！" : "领料单编辑成功！");
+                        location.reload(); // 刷新页面
+                    } else {
+                        alert((actionUrl.includes("create") ? "创建失败：" : "编辑失败：") + JSON.stringify(data.message));
+                    }
+                })
+                .catch(error => {
+                    alert("请求失败：" + error.message);
+                });
+        });
+
+        document.querySelectorAll('.delete-requisition').forEach(button => {
+            button.addEventListener('click', function() {
+                const requisitionId = this.getAttribute('data-id');
+                deleteRequisition(requisitionId);
+            });
+        });
+
+        function deleteRequisition(requisitionId) {
+            if (confirm('确定要删除该领料单吗？')) {
+                fetch(`/production/requisitions/delete/${requisitionId}/`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                })
+                .then(response => {
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message); // 使用返回的消息
+                        document.getElementById(`requisition-${requisitionId}`).remove(); // 移除 DOM 中的条目
+                    } else {
+                        alert('删除失败，请重试：' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('删除领料单请求失败，请检查网络或联系管理员。');
+                });
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -138,3 +138,11 @@ class RecipeMaterial(BaseModel):
 
     def __str__(self):
         return f"{self.material.name} in {self.recipe.product.name}"
+    
+
+class ProductionLine(models.Model):
+    name = models.CharField(max_length=255, unique=True, verbose_name="产线名称")
+    description = models.TextField(blank=True, null=True, verbose_name="描述")
+
+    def __str__(self):
+        return self.name

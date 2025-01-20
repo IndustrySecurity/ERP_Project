@@ -17,7 +17,7 @@ class SalesOrder(BaseModel):
     remarks = models.TextField(blank=True, null=True, verbose_name="备注")
     status = models.CharField(
         max_length=50,
-        choices=(('pending', '待处理'), ('shipped', '已出库'), ('returned', '已退库')),
+        choices=(('pending', '待处理'), ('shipped', '已出库'), ('returned', '已退库'), ('partial', '部分出库')),
         default='pending',
         verbose_name="订单状态"
     )

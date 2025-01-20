@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %}产线管理{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>产线管理</h2>
+
+    <!-- 搜索框和创建按钮 -->
+    <div class="mb-3 row">
+        <div class="col-md-6">
+            <input type="text" class="form-control" id="searchProductionLine" placeholder="搜索产线名称">
+        </div>
+        <div class="col-md-6 text-end">
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#productionLineCreateModal">创建产线</button>
+        </div>
+    </div>
+
+    <!-- 产线表格 -->
+    <table class="table table-bordered" id="productionLineTable">
+        <thead>
+            <tr>
+                <th>产线名称</th>
+                <th>描述</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 动态加载产线数据 -->
+        </tbody>
+    </table>
+
+    <!-- 分页 -->
+    <nav>
+        <ul class="pagination justify-content-center" id="pagination">
+            <!-- 动态加载分页按钮 -->
+        </ul>
+    </nav>
+</div>
+
+<!-- 创建产线模态框 -->
+<div class="modal fade" id="productionLineCreateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="productionLineCreateForm" method="post">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">创建产线</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="productionLineName" class="form-label">产线名称</label>
+                        <input type="text" class="form-control" id="productionLineName" name="name" placeholder="请输入产线名称">
+                    </div>
+                    <div class="mb-3">
+                        <label for="productionLineDescription" class="form-label">描述</label>
+                        <input type="text" class="form-control" id="productionLineDescription" name="description" placeholder="请输入描述">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑产线模态框 -->
+<div class="modal fade" id="productionLineEditModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="productionLineEditForm" method="post">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">编辑产线</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editProductionLineName" class="form-label">产线名称</label>
+                        <input type="text" class="form-control" id="editProductionLineName" name="name">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editProductionLineDescription" class="form-label">描述</label>
+                        <input type="text" class="form-control" id="editProductionLineDescription" name="description">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const productionLineTable = document.querySelector('#productionLineTable tbody');
+        const pagination = document.querySelector('#pagination');
+        const searchInput = document.querySelector('#searchProductionLine');
+
+        // 加载产线数据
+        function loadProductionLines(page = 1, search = '') {
+            fetch(`/master_data/production_lines/ajax/?page=${page}&search=${search}`)
+                .then(response => response.json())
+                .then(data => {
+                    productionLineTable.innerHTML = '';
+                    pagination.innerHTML = '';
+
+                    // 填充数据
+                    if (data.results.length === 0) {
+                        productionLineTable.innerHTML = `
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">暂无产线数据</td>
+                            </tr>`;
+                    } else {
+                        data.results.forEach(productionLine => {
+                            productionLineTable.innerHTML += `
+                                <tr>
+                                    <td>${productionLine.name}</td>
+                                    <td>${productionLine.description}</td>
+                                    <td>
+                                        <button class="btn btn-warning btn-sm edit-production-line" 
+                                                data-id="${productionLine.id}" 
+                                                data-name="${productionLine.name}" 
+                                                data-description="${productionLine.description}">
+                                            编辑
+                                        </button>
+                                        <button class="btn btn-danger btn-sm delete-production-line" data-id="${productionLine.id}">删除</button>
+                                    </td>
+                                </tr>`;
+                        });
+                    }
+
+                    // 分页
+                    for (let i = 1; i <= data.total_pages; i++) {
+                        pagination.innerHTML += `
+                            <li class="page-item ${i === data.current_page ? 'active' : ''}">
+                                <button class="page-link">${i}</button>
+                            </li>`;
+                    }
+                });
+        }
+
+        // 初始化加载
+        loadProductionLines();
+
+        // 搜索产线
+        searchInput.addEventListener('input', () => {
+            loadProductionLines(1, searchInput.value);
+        });
+
+        // 分页点击
+        pagination.addEventListener('click', e => {
+            if (e.target.tagName === 'BUTTON') {
+                loadProductionLines(parseInt(e.target.textContent), searchInput.value);
+            }
+        });
+
+        // 创建产线
+        document.querySelector('#productionLineCreateForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            fetch('/master_data/production_lines/create/', {
+                method: 'POST',
+                body: formData,
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('产线创建成功！');
+                        loadProductionLines();
+                        // 获取模态框并关闭
+                        const modalElement = document.querySelector('#productionLineCreateModal');
+                        const modalInstance = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+                        modalInstance.hide();
+                    } else {
+                        alert('创建失败：' + Object.values(data.errors).join('\n'));
+                    }
+                });
+        });
+
+        // 编辑产线
+        productionLineTable.addEventListener('click', e => {
+            if (e.target.classList.contains('edit-production-line')) {
+                const button = e.target;
+                const productionLineId = button.dataset.id;
+
+                const editForm = document.querySelector('#productionLineEditForm');
+                editForm.action = `/master_data/production_lines/edit/${productionLineId}/`;
+
+                editForm.querySelector('#editProductionLineName').value = button.dataset.name;
+                editForm.querySelector('#editProductionLineDescription').value = button.dataset.description;
+
+                const editModal = new bootstrap.Modal(document.querySelector('#productionLineEditModal'));
+                editModal.show();
+
+                // 添加提交事件处理
+                editForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    const formData = new FormData(this);
+
+                    fetch(this.action, {
+                        method: 'POST',
+                        body: formData,
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert('产线更新成功！');
+                                loadProductionLines(); // 重新加载产线列表
+                                // 关闭模态框
+                                editModal.hide();
+                            } else {
+                                alert('更新失败：' + Object.values(data.errors).join('\n'));
+                            }
+                        });
+                }, { once: true }); // 确保只绑定一次提交事件
+            }
+        });
+
+        // 删除产线
+        productionLineTable.addEventListener('click', e => {
+            if (e.target.classList.contains('delete-production-line')) {
+                const productionLineId = e.target.dataset.id;
+
+                if (confirm('确定要删除该产线吗？')) {
+                    fetch(`/master_data/production_lines/delete/${productionLineId}/`, {
+                        method: 'DELETE',
+                        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert('产线已删除');
+                                loadProductionLines();
+                            } else {
+                                alert('删除失败');
+                            }
+                        });
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

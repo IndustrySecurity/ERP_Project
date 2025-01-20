@@ -74,40 +74,23 @@
 <div class="modal fade" id="recipeCreateModal" tabindex="-1" aria-labelledby="recipeCreateModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form id="recipeCreateForm">
+            <form id="recipeCreateForm" action="{% url 'master_data:recipe_create' %}">
                 {% csrf_token %}
                 <div class="modal-header">
                     <h5 class="modal-title" id="recipeCreateModalLabel">创建配方</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="id_product" class="form-label">选择产品</label>
-                        <select id="id_product" name="product" class="form-select">
-                            <option value="">请选择产品</option>
-                            {% for product in products %}
-                            <option value="{{ product.id }}">{{ product.name }}</option>
-                            {% endfor %}
-                        </select>
+                    <div id="selectedProduct" name="product"></div>
+                    <button type="button" class="btn btn-primary" id="selectProductBotton">
+                        选择产品
+                    </button>
+                  
+                    <div id="materialsSection" class="mt-4">
+                        <h5>已选择的原材料</h5>
+                        <div id="selectedMaterialsList"></div>  <!-- 动态添加选中的材料和数量 -->
                     </div>
-                    <div id="materialsSection">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="id_material" class="form-label">选择原材料</label>
-                                <select name="materials" class="form-select material-select">
-                                    <option value="">请选择材料</option>
-                                    {% for material in materials %}
-                                    <option value="{{ material.id }}">{{ material.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="id_quantity" class="form-label">数量</label>
-                                <input type="number" step="0.01" name="quantities" class="form-control">
-                            </div>
-                        </div>
-                    </div>
-                    <button type="button" class="btn btn-secondary mt-3" id="addMaterial">添加材料</button>
+                    <button type="button" class="btn btn-secondary mt-3" id="selectMaterialButton">编辑材料</button>
                     <div class="mb-3 mt-3">
                         <label for="id_description" class="form-label">描述</label>
                         <textarea id="id_description" name="description" class="form-control"></textarea>
@@ -122,34 +105,155 @@
     </div>
 </div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // 添加材料行
-        document.getElementById('addMaterial').addEventListener('click', function () {
-            const materialsSection = document.getElementById('materialsSection');
-            const newRow = `
-                <div class="row g-3 mt-2">
-                    <div class="col-md-6">
-                        <select name="materials" class="form-select material-select">
-                            <option value="">请选择材料</option>
+<!-- 选择材料模态框 -->
+<div class="modal fade" id="materialSelectModal" tabindex="-1" aria-labelledby="materialSelectModalLabel" aria-hidden="true">
+    <div class="modal-dialog" style="max-width: 90%; width: auto;">  <!-- 设置最大宽度 -->
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="materialSelectModalLabel">编辑材料</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="materialSelectForm">
+                    {% csrf_token %}
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>选择</th>
+                                <th>料号</th>
+                                <th>原材料名称</th>
+                                <th>类别</th>
+                                <th>供应商</th>
+                                <th>单价</th>
+                                <th>容量</th>
+                                <th>颜色</th>
+                                <th>客供/非客供</th>
+                                <th>工艺技术</th>
+                                <th>备注</th>
+                                <th>数量</th>  <!-- 新增数量列 -->
+                            </tr>
+                        </thead>
+                        <tbody>
                             {% for material in materials %}
-                            <option value="{{ material.id }}">{{ material.name }}</option>
+                            <tr>
+                                <td>
+                                    <input class="form-check-input" type="checkbox" value="{{ material.id }}" id="material{{ material.id }}" data-material-id="{{ material.id }}" name="{{material.name}}">
+                                </td>
+                                <td>{{ material.material_number }}</td>
+                                <td>{{ material.name }}</td>
+                                <td>{{ material.category.name }}</td>
+                                <td>{{ material.supplier.name }}</td>
+                                <td>{{ material.unit_price }}</td>
+                                <td>{{ material.capacity }}</td>
+                                <td>{{ material.color }}</td>
+                                <td>{{ material.customer_supply }}</td>
+                                <td>{{ material.technology }}</td>
+                                <td>{{ material.remark }}</td>
+                                <td>
+                                    <input type="number" name="quantities" class="form-control quantity-input" id="quantity{{ material.id }}" value="0" disabled>
+                                </td>
+                            </tr>
                             {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <input type="number" step="0.01" name="quantities" class="form-control">
-                    </div>
-                </div>`;
-            materialsSection.insertAdjacentHTML('beforeend', newRow);
-        });
+                        </tbody>
+                    </table>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" id="saveSelectedMaterials">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
 
+<!-- 产品选择模态框 -->
+<div class="modal fade" id="productSelectModal" tabindex="-1" aria-labelledby="productSelectModalLabel" aria-hidden="true">
+    <div class="modal-dialog" style="max-width: 90%; width: auto;">  <!-- 设置最大宽度 -->
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="productSelectModalLabel">选择产品</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="productSelectForm">
+                    {% csrf_token %}
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>选择</th>
+                                <th>产品编号</th>
+                                <th>产品名称</th>
+                                <th>类别</th>
+                                <th>单价</th>
+                                <th>容器材质</th>
+                                <th>容量</th>
+                                <th>颜色</th>
+                                <th>工艺技术</th>
+                                <th>备注</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in products %}
+                            <tr>
+                                <td>
+                                    <input class="form-check-input" type="radio" name="selectedProduct" value="{{ product.name }}" id="product{{ product.id }}">
+                                </td>
+                                <td>{{ product.product_code }}</td>
+                                <td>{{ product.name }}</td>
+                                <td>{{ product.category.name }}</td>
+                                <td>{{ product.unit_price }}</td>
+                                <td>{{ product.material }}</td>
+                                <td>{{ product.capacity }}</td>
+                                <td>{{ product.color }}</td>
+                                <td>{{ product.technology }}</td>
+                                <td>{{ product.remark }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" id="confirmProductSelection">确认选择</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+   
+    document.addEventListener('DOMContentLoaded', function () {
         // 提交表单
         document.getElementById('recipeCreateForm').addEventListener('submit', function (e) {
             e.preventDefault();
             const formData = new FormData(this);
+            // 额外处理材料和数量
+            const materials = [];
+            const quantities = [];
+    
+            // 遍历选中材料和数量
+            const selectedMaterials = document.querySelectorAll('#selectedMaterialsList .row');
+            selectedMaterials.forEach(row => {
+                const materialId = row.querySelector('input[name="materials"]').value;
+                const quantity = row.querySelector('input[name="quantities"]').value;
 
-            fetch("{% url 'master_data:recipe_create' %}", {
+                materials.push(materialId);
+                quantities.push(quantity);
+            });
+            const selectedProductId = document.querySelector('input[name="selectedProduct"]:checked');
+            const product = selectedProductId.id.substring("product".length);
+
+            // 将获取的材料和数量添加到 FormData
+            materials.forEach(material => {
+                formData.append('materials', material); // 添加每个材料ID
+            });           
+            quantities.forEach(quantity => {
+                formData.append('quantities', quantity); // 添加每个数量
+            });
+            formData.append('product', product);
+            fetch(this.action, {
                 method: 'POST',
                 body: formData,
                 headers: { 'X-CSRFToken': '{{ csrf_token }}' },
@@ -180,55 +284,79 @@
                     })
                     .then(data => {
                         if (data.success) {
-                            // 填充模态框数据
-                            document.getElementById('id_description').value = data.recipe.description;
-        
-                            // 填充产品选择框
-                            const productSelect = document.getElementById('id_product');
-                            productSelect.value = data.recipe.product_id;
-        
-                            // 动态填充材料选择框
-                            const materialsSection = document.getElementById('materialsSection');
-                            materialsSection.innerHTML = ''; // 清空现有材料行
-                            data.recipe.materials.forEach(material => {
-                                materialsSection.innerHTML += `
-                                    <div class="row g-3 mt-2">
-                                        <div class="col-md-6">
-                                            <select name="materials" class="form-select">
-                                                <option value="">请选择材料</option>
-                                                {% for material in materials %}
-                                                <option value="{{ material.id }}" ${material.material__id == {{ material.id }} ? 'selected' : ''}>
-                                                    {{ material.name }}
-                                                </option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <input type="number" step="0.01" name="quantities" value="${material.quantity}" class="form-control">
-                                        </div>
-                                    </div>`;
-                            });
-        
-                            // 设置模态框标题
-                            document.getElementById('recipeCreateModalLabel').textContent = '编辑配方';
-        
-                            // 设置表单 action URL 为更新 URL
-                            const form = document.getElementById('recipeCreateForm');
-                            form.action = `/master_data/recipes/update/${id}/`;
-        
-                            // 显示模态框
-                            new bootstrap.Modal(document.getElementById('recipeCreateModal')).show();
-                        } else {
-                            alert('加载失败: ' + data.message);
+                        // 填充表单字段
+                        document.getElementById('id_description').value = data.recipe.description;
+
+                        const selectedProductId = data.recipe.product_id; // 获取产品 ID
+                        // 选中对应产品的单选框
+                        const productRadio = document.querySelector(`input[name="selectedProduct"][id="product${selectedProductId}"]`);
+                        if (productRadio) {
+                            productRadio.checked = true; // 设置为选中状态
                         }
-                    })
-                    .catch(error => {
-                        console.error('加载失败:', error);
-                        alert('加载失败，请检查网络或联系管理员');
-                    });
+                        const selectedProductElement = document.getElementById('selectedProduct');
+                        selectedProductElement.textContent = '产品名称: ' + productRadio.value;
+                        selectedProductElement.style.fontSize = '24px'; // 调整字体大小
+                        selectedProductElement.style.fontWeight = 'bold'; // 可选：加粗
+
+                        // 预选材料复选框
+                        const materialsCheckboxes = document.querySelectorAll('#materialSelectModal input[type="checkbox"]');
+                        materialsCheckboxes.forEach(checkbox => {
+                            const materialId = checkbox.value;
+
+                            // 检查当前复选框是否在配方的材料列表中
+                            const selectedMaterial = data.recipe.materials.find(material => material.material__id == materialId);
+                            const isSelected = selectedMaterial !== undefined; // 判断材料是否存在
+
+                            checkbox.checked = isSelected;  // 选中已选材料
+                            const quantityInput = document.getElementById('quantity' + materialId);
+
+                            // 根据复选框状态启用/禁用数量输入，并设置数量值
+                            if (isSelected) {
+                                quantityInput.disabled = false; // 启用数量输入
+                                quantityInput.value = selectedMaterial.quantity; // 设置为数据库返回的数量
+                            } else {
+                                quantityInput.disabled = true; // 禁用数量输入
+                                quantityInput.value = 0; // 设置为0
+                            }
+                        });
+
+                        // 清空已选择的材料列表
+                        const selectedMaterialsList = document.getElementById('selectedMaterialsList');
+                        selectedMaterialsList.innerHTML = ''; // 清空现有材料行
+                        
+                        // 将已选择的材料填入已选择的材料列表
+                        data.recipe.materials.forEach(material => {
+                            const materialRow = document.createElement('div');
+                            materialRow.className = 'row g-3';
+                            materialRow.id = 'selectedMaterialRow' + material.material__id; // 唯一标识
+                            materialRow.innerHTML += `
+                                    <div class="col-md-6">
+                                        <label class="form-label">材料名称</label>
+                                        <input type="text" class="form-control" value="${material.material__name}" disabled>
+                                        <input type="hidden" name="materials" value="${material.material__id}">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">数量</label>
+                                        <input type="number" step="1" name="quantities" class="form-control" value="${material.quantity}" disabled>
+                                    </div>`;
+                            selectedMaterialsList.appendChild(materialRow);
+                        });
+
+                        // 设置模态框标题
+                        document.getElementById('recipeCreateModalLabel').textContent = '编辑配方';
+                        const form = document.getElementById('recipeCreateForm');
+                        form.action = `/master_data/recipes/update/${id}/`;
+                        new bootstrap.Modal(document.getElementById('recipeCreateModal')).show(); // 显示模态框
+                    } else {
+                        alert('加载失败: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载失败:', error);
+                    alert('加载失败，请检查网络或联系管理员');
+                });
             });
         });
-        
         
 
         // 删除配方
@@ -252,6 +380,116 @@
                 }
             });
         });
+
+        document.getElementById('selectMaterialButton').addEventListener('click', function () {
+            new bootstrap.Modal(document.getElementById('materialSelectModal')).show();
+        });
+
+        // 监听复选框的变更事件
+        const checkboxes = document.querySelectorAll('#materialSelectModal [type="checkbox"]');
+        const selectedMaterialsList = document.getElementById('selectedMaterialsList');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function () {
+                const quantityInput = document.getElementById('quantity' + this.dataset.materialId);
+                const materialId = this.value;
+                const materialName = this.name;
+                // 如果复选框选中
+                if (this.checked) {
+                    // 启用数量输入框
+                    quantityInput.disabled = false;
+                    quantityInput.value = 1; // 默认1
+                    // 创建新行展示已选中的材料和数量输入框
+                    const materialRow = document.createElement('div');
+                    materialRow.className = 'row g-3';
+                    materialRow.id = 'selectedMaterialRow' + materialId; // 唯一标识
+
+                    materialRow.innerHTML = `                   
+                        <div class="col-md-6">
+                            <label class="form-label">材料名称</label>
+                            <input type="text" class="form-control" value="${materialName}" disabled>
+                            <input type="hidden" name="materials" value="${materialId}"> <!-- 隐藏材料ID -->
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">数量</label>
+                            <input type="number" step="1" name="quantities" class="form-control" value="${quantityInput.value}" disabled>
+                        </div>`;
+                    selectedMaterialsList.appendChild(materialRow);
+                    // 为数量输入框添加事件监听
+                    quantityInput.addEventListener('input', function () {
+                        // 更新数量，保持对应的数量显示
+                        const selectedRow = document.getElementById('selectedMaterialRow' + materialId);
+                        if (selectedRow) {
+                            const quantityDisplay = selectedRow.querySelector('input[name="quantities"]');
+                            quantityDisplay.value = this.value; // 更新对应的数量
+                        }
+                    });
+                } else {
+                    // 禁用数量输入框并清零
+                    quantityInput.value = 0; // 设置为0
+                    quantityInput.disabled = true;
+                    // 如果没有选中，移除对应的材料行
+                    const selectedRow = document.getElementById('selectedMaterialRow' + materialId);
+                    if (selectedRow) {
+                        selectedMaterialsList.removeChild(selectedRow);
+                    }
+                }
+            });
+            // 单独监听数量输入框的变化，确保该输入框在其他地方也能正常工作
+            const quantityInput = document.getElementById('quantity' + checkbox.dataset.materialId);
+            quantityInput.addEventListener('input', function () {
+                if (checkbox.checked) {
+                    const selectedRow = document.getElementById('selectedMaterialRow' + checkbox.value);
+                    if (selectedRow) {
+                        const quantityDisplay = selectedRow.querySelector('input[name="quantities"]');
+                        quantityDisplay.value = this.value; // 更新对应的数量
+                    }
+                }
+            });
+        });
+
+
+        // 保存材料及数量逻辑...
+        document.getElementById('saveSelectedMaterials').addEventListener('click', function () {
+            const materials = [];
+            const quantities = [];
+    
+            // 遍历选中材料和数量
+            const selectedMaterials = document.querySelectorAll('#selectedMaterialsList .row');
+            selectedMaterials.forEach(row => {
+                const materialId = row.querySelector('input[name="materials"]').value;
+                const quantity = row.querySelector('input[name="quantities"]').value;
+
+                materials.push(materialId);
+                quantities.push(quantity);
+            });
+            // 关闭材料选择模态框
+            bootstrap.Modal.getInstance(document.getElementById('materialSelectModal')).hide();
+        });
+
+        document.getElementById('selectProductBotton').addEventListener('click', function () {
+            new bootstrap.Modal(document.getElementById('productSelectModal')).show();
+        });
+        // 处理确认选择按钮的点击事件
+        const confirmButton = document.getElementById('confirmProductSelection')
+        confirmButton.addEventListener('click', function () {
+            const selectedProductId = document.querySelector('input[name="selectedProduct"]:checked');
+            if (selectedProductId) {
+                // 获取选中的产品名称
+                const selectedProductName = selectedProductId.value;
+                // 显示选中的产品名称
+                const selectedProductElement = document.getElementById('selectedProduct');
+                selectedProductElement.textContent = '产品名称: ' + selectedProductName;
+                selectedProductElement.style.fontSize = '24px'; // 调整字体大小
+                selectedProductElement.style.fontWeight = 'bold'; // 可选：加粗
+
+                // 关闭模态框
+                bootstrap.Modal.getInstance(document.getElementById('productSelectModal')).hide();
+            } else {
+                alert('请先选择一个产品。');
+            }
+        });
+
     });
+    
 </script>
 {% endblock %}
