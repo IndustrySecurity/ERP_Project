@@ -28,7 +28,7 @@ class ProductionOrder(models.Model):
         # 在第一次保存时生成唯一编号
         if not self.pk:  # 检查是否是新建记录
             super().save(*args, **kwargs)  # 先保存以生成主键
-            self.order_number = f"PO-{self.pk:06d}"  # 基于主键生成唯一编号
+            self.order_number = f"WO-{self.pk:06d}"  # 基于主键生成唯一编号
             self.save(update_fields=['order_number'])  # 更新 order_number
         else:
             super().save(*args, **kwargs)  # 普通更新直接保存
