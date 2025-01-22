@@ -1,8 +1,9 @@
 from django.db import models
 from common.base import BaseModel
-from master_data.models import Material, ProductionLine  
+from master_data.models import Material, Product, ProductionLine  
 from sales.models import SalesOrder
 from users.models import CustomUser
+from warehouse.models import WarehouseLocation
     
 class ProductionOrder(models.Model):
     order_number = models.CharField(max_length=100, unique=True, verbose_name="工单编号")
@@ -36,17 +37,20 @@ class ProductionOrder(models.Model):
     def __str__(self):
         return f"{self.order_number} - {self.responsible_person} - {self.planned_start_time}"
     
+from django.db import models
+from django.utils import timezone
+
 class MaterialRequisition(models.Model):
     materialrequisition_number = models.CharField(max_length=100, unique=True, verbose_name="领料单编号")
     production_order = models.OneToOneField(ProductionOrder, on_delete=models.CASCADE, verbose_name="生产工单")
     responsible_person = models.ForeignKey(CustomUser, on_delete=models.CASCADE, default="", verbose_name="负责人")
 
     def save(self, *args, **kwargs):
-        # 在第一次保存时生成唯一编号
         if not self.pk:  # 检查是否是新建记录
             super().save(*args, **kwargs)  # 先保存以生成主键
             self.materialrequisition_number = f"MR-{self.pk:06d}"  # 基于主键生成唯一编号
-            self.save(update_fields=['materialrequisition_number'])  # 更新 materialrequisition_number
+            # 在这里调用save会导致无限递归，所以我们要用update_fields
+            self.save(update_fields=['materialrequisition_number'])  # 更新materialrequisition_number
         else:
             super().save(*args, **kwargs)  # 普通更新直接保存
 
@@ -58,11 +62,37 @@ class MaterialRequisition(models.Model):
         verbose_name_plural = '领料单'
 
 
+
 class ProductionMaterial(BaseModel):
     materialrequisition = models.ForeignKey(MaterialRequisition, on_delete=models.CASCADE, verbose_name="领料单")
     material = models.ForeignKey(Material, on_delete=models.CASCADE, verbose_name="原材料")
     quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="数量")
 
     def __str__(self):
-        return f"{self.material.name} in {self.recipe.product.name}"
+        return f"{self.material.name} in {self.materialrequisition}"
     
+class WarehousingReceipt(models.Model):
+    receipt_number = models.CharField(max_length=100, unique=True, verbose_name="入库单编号")
+    productionorder = models.ForeignKey(ProductionOrder, on_delete=models.CASCADE, verbose_name="工单编号")
+    location = models.ForeignKey(WarehouseLocation, on_delete=models.CASCADE, verbose_name="仓库位置")
+    date = models.DateField(auto_now_add=True)
+    remarks = models.TextField(blank=True, null=True, verbose_name="备注")
+    created_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE, default="", verbose_name="创建人")
+
+    def save(self, *args, **kwargs):
+        if not self.pk:  # 检查是否是新建记录W
+            super().save(*args, **kwargs)  # 先保存以生成主键
+            self.receipt_number = f"WR-{self.pk:06d}"  # 基于主键生成唯一编号
+            # 在这里调用save会导致无限递归，所以我们要用update_fields
+            self.save(update_fields=['receipt_number'])  # 更新receipt_number
+        else:
+            super().save(*args, **kwargs)  # 普通更新直接保存
+
+    def __str__(self):
+        return self.receipt_number
+    
+class WarehousedProduct(models.Model):
+    warehousingreceipt = models.ForeignKey(WarehousingReceipt, on_delete=models.CASCADE, verbose_name="入库单")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="产品")
+    expected_quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="预期入库数量")
+    actual_quantity = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="实际入库数量")

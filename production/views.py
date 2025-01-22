@@ -6,7 +6,10 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from django.db import transaction
 from django.views import View
-from .models import MaterialRequisition, ProductionMaterial, ProductionOrder
+from django.db.models import Q
+
+from warehouse.models import MaterialStock, ProductStock, WarehouseLocation
+from .models import MaterialRequisition, ProductionMaterial, ProductionOrder, WarehousedProduct
 from master_data.models import Material, ProductionLine, Recipe, RecipeMaterial  
 from django.core.paginator import Paginator
 from sales.models import SalesOrder,SalesOrderItem
@@ -159,7 +162,7 @@ def material_requisition_list(request):
     page_obj = paginator.get_page(page_number)
 
     # 获取所有生产工单
-    production_orders = ProductionOrder.objects.all()
+    production_orders = ProductionOrder.objects.filter(status="pending")
     users = CustomUser.objects.all()
 
     context = {
@@ -187,6 +190,8 @@ def get_materials(request,pk):
             production_order = get_object_or_404(ProductionOrder, id=production_order_id)
             sales_order = production_order.sales_order.id
             items = SalesOrderItem.objects.filter(order_id=sales_order)
+            row_material_warehouse_location = WarehouseLocation.objects.filter(name = '原材料仓库').first()
+            production_line_warehouse_location = WarehouseLocation.objects.filter(name = '产线仓库').first()
             # 初始化所需材料列表
             required_materials = []
             for item in items:
@@ -201,7 +206,20 @@ def get_materials(request,pk):
                         material_id = material.material.id
                         material_name = material.material.name
                         material_quantity = material.quantity * item.quantity  # 根据销售订单项的数量计算所需的总数量
-                        
+                        # 获取原材料仓库的库存
+                        raw_material_stock = MaterialStock.objects.filter(material=material.material, location=row_material_warehouse_location).first()
+                        if raw_material_stock is None:
+                            raw_material_quantity = 0
+                        else:
+                            raw_material_quantity = raw_material_stock.quantity
+
+                        # 获取产线仓库的库存
+                        production_line_stock = MaterialStock.objects.filter(material=material.material, location=production_line_warehouse_location).first()
+                        if production_line_stock is None:
+                            production_line_quantity = 0
+                        else:
+                            production_line_quantity = production_line_stock.quantity    
+
                         # 查找是否已经存在该材料
                         existing_material = next((m for m in required_materials if m['material_id'] == material_id), None)
                         
@@ -213,7 +231,9 @@ def get_materials(request,pk):
                             required_materials.append({
                                 'material_id': material_id,
                                 'material_name': material_name,
-                                'quantity': material_quantity
+                                'quantity': material_quantity,
+                                'raw_material_quantity': raw_material_quantity,
+                                'production_line_quantity': production_line_quantity,
                             })
             return JsonResponse({
                         'success': True,
@@ -240,9 +260,259 @@ def material_requisition_create(request):
     # 循环处理每种材料和数量
     for material_id, quantity in zip(materials, quantities):
         # 查找材料对象
-        material = Material.objects.get(id=material_id)
+        material = Material.objects.filter(id=material_id).first()
         # 创建与领料单关联的材料项
         ProductionMaterial.objects.create(materialrequisition=materialrequisition, material=material, quantity=quantity)
     
+    production_order = ProductionOrder.objects.filter(id=production_order_id).first()
+    production_order.status = 'material_collected'
+    production_order.save()
+
     # 返回成功信息
     return JsonResponse({'success': True, 'message': '领料单已成功创建！'})
+
+def view_requisition(request, pk):
+    # 尝试获取领料单
+    try:
+        requisition = MaterialRequisition.objects.get(id=pk)
+        # 获取领料单的基本信息
+        data = {
+            'success': True,
+            'requisition': {
+                'materialrequisition_number': requisition.materialrequisition_number,
+                'production_order': {
+                    'id': requisition.production_order.id,
+                    'order_number': requisition.production_order.order_number,
+                },
+                'responsible_person': {
+                    'id': requisition.responsible_person.id,
+                    'username': requisition.responsible_person.username,
+                },
+                'productionmaterial_set': [],
+                'created_at': ProductionMaterial.objects.filter(materialrequisition=requisition).first().created_at,
+                'remarks': requisition.production_order.remarks,
+            }
+        }
+        row_material_warehouse_location = WarehouseLocation.objects.filter(name = '原材料仓库').first()
+        production_line_warehouse_location = WarehouseLocation.objects.filter(name = '产线仓库').first()
+        # 获取领料项
+        for item in ProductionMaterial.objects.filter(materialrequisition=requisition):
+            # 获取原材料仓库的库存
+            raw_material_stock = MaterialStock.objects.filter(material=item.material, location=row_material_warehouse_location).first()
+            if raw_material_stock is None:
+                raw_material_quantity = 0
+            else:
+                raw_material_quantity = raw_material_stock.quantity
+
+            # 获取产线仓库的库存
+            production_line_stock = MaterialStock.objects.filter(material=item.material, location=production_line_warehouse_location).first()
+            if production_line_stock is None:
+                production_line_quantity = 0
+            else:
+                production_line_quantity = production_line_stock.quantity  
+
+            data['requisition']['productionmaterial_set'].append({
+                'material': {
+                    'id': item.material.id,
+                    'name': item.material.name,
+                },
+                'quantity': item.quantity,
+                'raw_material_quantity': raw_material_quantity,
+                'production_line_quantity': production_line_quantity,
+            })
+
+        # 如果显示配方材料，可以在此添加
+        # data['requisition']['recipe_materials'] = get_recipe_materials(requisition)
+        
+    except MaterialRequisition.DoesNotExist:
+        return JsonResponse({'success': False, 'message': '领料单不存在或已被删除！'})
+
+    # 返回领料单详情
+    return JsonResponse(data)
+            
+def material_requisition_delete(request, pk):
+    if request.user.is_authenticated:
+        # 获取要删除的领料单
+        requisition = get_object_or_404(MaterialRequisition, pk=pk)
+
+        # 生产工单状态设置为pending
+        productionorder = ProductionOrder.objects.filter(id=requisition.production_order.id).first()
+        if(productionorder.status=="completed"):
+            return JsonResponse({"success": False, "message": "生产已入库，无法删除！"})
+        productionorder.status = 'pending'
+        productionorder.save()
+
+        # 删除材料项
+        ProductionMaterial.objects.filter(materialrequisition=requisition).delete()
+        # 删除领料单
+        requisition.delete()
+
+        # 返回成功响应
+        return JsonResponse({"success": True, "message": "领料单删除成功！"})
+    else:
+        return JsonResponse({"success": False, "message": "未授权访问。"}, status=403)
+    
+from django.core.paginator import Paginator
+from django.shortcuts import render
+from .models import WarehousingReceipt, Product, CustomUser, WarehouseLocation
+
+def product_warehousing_list(request):
+    """显示产品入库列表，支持分页和查询"""
+    query = request.GET.get('q', '').strip() if 'q' in request.GET else None
+
+    # 按查询条件过滤入库记录，并按入库单编号的倒序排列
+    receipts = WarehousingReceipt.objects.select_related('productionorder', 'location', 'created_by') \
+        .order_by('-receipt_number')
+
+    if query:
+        # 按入库单编号、工单编号、仓库名称、备注进行查询
+        receipts = receipts.filter(receipt_number__icontains=query) | \
+                   receipts.filter(productionorder__order_number__icontains=query) | \
+                   receipts.filter(location__name__icontains=query) | \
+                   receipts.filter(remarks__icontains=query)
+
+    # 获取所有仓库位置和用户的列表
+    locations = WarehouseLocation.objects.all()
+    users = CustomUser.objects.all()
+    production_orders = ProductionOrder.objects.filter(status="material_collected")
+
+    # 分页处理
+    paginator = Paginator(receipts, 10)  # 每页显示 10 条记录
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'receipts': page_obj.object_list,  # 当前页入库记录列表
+        'page_obj': page_obj,  # 分页对象
+        'paginator': paginator,  # 分页器
+        'query': query,  # 搜索查询
+        'locations': locations,  # 所有仓库位置
+        'users': users,  # 所有用户
+        'production_orders': production_orders, # 工单
+    }
+    return render(request, 'production/product_warehousing_list.html', context)
+
+def get_products(request, pk):
+
+    # 获取指定的工单对象，如果不存在则返回 404
+    production_order = get_object_or_404(ProductionOrder, pk=pk)
+
+    # 获取与工单关联的产品
+    salesorderitems = SalesOrderItem.objects.filter(order=production_order.sales_order)
+    
+    product_data = []
+    for salesorderitem in salesorderitems:
+        product_data.append({
+            'id': salesorderitem.product.id,
+            'name': salesorderitem.product.name,
+            'expected_quantity': salesorderitem.quantity,  # 预期数量
+            'actual_quantity': salesorderitem.quantity,  # 实际数量
+        })
+    response_data = {
+        'success': True,
+        'items': product_data
+    }
+    
+    return JsonResponse(response_data)
+
+def product_receipt_create(request):
+    """处理产品入库单创建"""
+    if request.method == 'POST':
+        production_order_id = request.POST.get('production_order')
+        productionorder = ProductionOrder.objects.filter(id=production_order_id).first()
+        location_id = request.POST.get('location')
+        location = WarehouseLocation.objects.filter(id=location_id).first()
+        remarks = request.POST.get('remarks')
+        product_ids = request.POST.getlist('product_ids[]')
+        expected_quantities = request.POST.getlist('expected_quantities[]')
+        actual_quantities = request.POST.getlist('actual_quantities[]')
+        #判断产线仓库材料是否足够
+        insufficientmaterial = []
+
+        materialrequisition = MaterialRequisition.objects.filter(production_order=productionorder).first()
+        productionmaterial = ProductionMaterial.objects.filter(materialrequisition=materialrequisition)
+        productionline_warehouse = WarehouseLocation.objects.filter(name='产线仓库').first()
+        for item in productionmaterial:
+            materialstoct = MaterialStock.objects.filter(material=item.material, location=productionline_warehouse).first()
+            if materialstoct is None:
+                MaterialStock.objects.create(material=item.material, location=productionline_warehouse, quantity=-Decimal(item.quantity))
+                if -Decimal(item.quantity)<0:
+                    insufficientmaterial.append(item.material.name)
+            else:
+                materialstoct.quantity-=Decimal(item.quantity)
+                if(materialstoct.quantity<0):
+                    insufficientmaterial.append(item.material.name)
+                materialstoct.save()
+
+        for product_id, actual_quantity in zip(product_ids, actual_quantities):
+            # 获取产品的库存记录
+            product = Product.objects.filter(id=product_id).first()
+            product_stock = ProductStock.objects.filter(product=product,location=location).first()
+            # 检查产品库存是否存在
+            if product_stock is None:
+                # 如果库存不存在，可以根据需求选择创建新的库存记录
+                ProductStock.objects.create(
+                    product=product,
+                    location=location,  # 或者指定默认仓库位置
+                    quantity=actual_quantity
+                )               
+            else:
+                # 更新库存数量
+                new_quantity = Decimal(product_stock.quantity) + Decimal(actual_quantity)
+                product_stock.quantity = new_quantity
+                product_stock.save()  # 保存更新
+
+        # 创建新的入库单记录
+        receipt = WarehousingReceipt(
+            productionorder_id=production_order_id,
+            location_id=location_id,
+            remarks=remarks,
+            created_by=request.user
+        )
+
+        receipt.save()  # 保存入库单以生成 receipt_number
+
+        # 创建与入库单关联的物料记录
+        for product_id, expected_quantity, actual_quantity in zip(product_ids, expected_quantities, actual_quantities):
+            WarehousedProduct.objects.create(
+                warehousingreceipt=receipt,
+                product_id=product_id,
+                expected_quantity=expected_quantity, 
+                actual_quantity=actual_quantity
+            )
+
+        # 置工单状态为已完成
+        productionorder.status = 'completed'
+        productionorder.save()
+
+        if insufficientmaterial:
+            # 将材料名称连接成字符串，并显示在消息中
+            material_names = ", ".join(insufficientmaterial)  # 将列表转换为逗号分隔的字符串
+            return JsonResponse({'success': True, 'message': f'入库单创建成功！但是以下材料在产线仓库中数量不足：{material_names}，注意及时调拨！'})
+        else:
+            return JsonResponse({'success': True, 'message': '入库单创建成功！'})
+    
+    return JsonResponse({'success': False, 'message': '无效的请求'})
+
+def production_plan(request):
+    return render(request, 'production/production_plan.html', {})
+
+def get_production_plans(request):
+    # 获取所有生产工单
+    production_orders = ProductionOrder.objects.filter(
+        Q(status="pending") | Q(status="material_collected")
+    )
+
+    # 格式化数据以供甘特图使用
+    tasks = []
+    for order in production_orders:
+        tasks.append({
+            'id': order.id,
+            'text': order.order_number,
+            'start_date': order.planned_start_time.strftime('%Y-%m-%d'),
+            'duration': (order.planned_end_time - order.planned_start_time).days,
+            'production_line': order.production_line.name,
+            'status': order.status,
+        })
+    
+    return JsonResponse(tasks, safe=False)  # 返回JSON响应，safe=False允许返回非字典对象

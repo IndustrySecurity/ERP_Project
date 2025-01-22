@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        .bar {
+            fill: steelblue;
+        }
+        .bar.pending {
+            fill: steelblue; /* 状态为 pending 的颜色 */
+        }
+        .bar.material_collected {
+            fill: green; /* 状态为 material_collected 的颜色 */
+        }
+        .bar:hover {
+            fill: orange;
+        }
+        .axis--x path {
+            display: none;
+        }
+        .axis--y .domain {
+            display: none;
+        }
+        .overdue {
+            fill: red; /* 超时标记的颜色 */
+        }
+        .scroll-container {
+            overflow-x: auto; /* 开启横向滚动 */
+            width: 100%; /* 宽度设为100%，以适应父元素 */
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-container">
+        <h1 style="text-align: center;">生产计划图</h1>
+        <div style="text-align: center;">
+            <label for="start-date">开始时间(之前的工单安排将不展示):</label>
+            <input type="date" id="start-date">
+            <button id="update-button">确定</button>
+        </div>
+        <svg width="2400" height="550"></svg>
+
+        <script>
+            const svg = d3.select("svg");
+            let tasks = []; // 存储任务数据
+
+            function drawChart(startDate) {
+                startDate.setHours(0, 0, 0, 0);
+                console.log(startDate);
+                const endDate = new Date(startDate); // 复制开始时间
+                endDate.setDate(startDate.getDate() + 40); // 设置结束日期为开始时间后40天
+                svg.selectAll("*").remove(); // 清除之前的图表
+
+                // SVG的宽度和高度
+                const margin = { top: 20, right: 30, bottom: 40, left: 150 };
+                const width = 2400 - margin.left - margin.right;
+                const height = 550 - margin.top - margin.bottom;
+
+                // 创建SVG画布
+                const g = svg.append("g")
+                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+                // 设置X轴的比例尺
+                const x = d3.scaleTime()
+                    .domain([startDate, endDate])
+                    .range([0, width])
+                    .nice();
+
+                // 设置Y轴的比例尺
+                const y = d3.scaleBand()
+                    .domain(tasks.map(d => d.production_line))
+                    .range([0, height])
+                    .padding(0.1);
+
+                // 绘制X轴和Y轴
+                g.append("g")
+                    .attr("class", "axis axis--x")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(d3.axisBottom(x).ticks(d3.timeDay.every(1)).tickFormat(d3.timeFormat("%m-%d")));
+                
+                g.append("g")
+                    .attr("class", "axis axis--y")
+                    .call(d3.axisLeft(y));
+
+                    
+                g.selectAll(".bar")
+                    .data(tasks)
+                    .enter().filter(d => !(d.end_date < startDate || d.start_date > endDate)) // 过滤不在范围内的任务
+                    .append("rect")
+                    .attr("class", d => `bar ${d.status}`) // 根据任务状态动态设置类
+                    .attr("x", d => x(d.start_date) - 15)
+                    .attr("y", d => y(d.production_line))
+                    .attr("width", d => Math.max(0, x(d.end_date) - x(d.start_date)))
+                    .attr("height", y.bandwidth())
+                    .attr("rx", 4)
+                    .attr("ry", 4)
+                    .append("title")
+                    .text(d => `${d.text}: ${d.start_date.toLocaleDateString()} - ${d.end_date.toLocaleDateString()}`);
+
+                // 绘制开始时间和结束时间的虚线
+                tasks.forEach(d => {
+                    if (!(d.end_date < startDate || d.start_date > endDate)) {
+                        // 绘制开始时间线
+                        g.append("line")
+                            .attr("x1", x(d.start_date) - 15)
+                            .attr("y1", y(d.production_line))
+                            .attr("x2", x(d.start_date) - 15)
+                            .attr("y2", height) 
+                            .attr("stroke", "black")
+                            .attr("stroke-dasharray", "4 2")
+                            .attr("stroke-width", 1);
+                        
+                        // 绘制结束时间线
+                        g.append("line")
+                            .attr("x1", x(d.end_date) - 15)
+                            .attr("y1", y(d.production_line))
+                            .attr("x2", x(d.end_date) - 15)
+                            .attr("y2", height)
+                            .attr("stroke", "black")
+                            .attr("stroke-dasharray", "4 2")
+                            .attr("stroke-width", 1);
+                    }
+                });
+
+
+                // 添加图例
+                const legend = g.append("g")
+                    .attr("transform", "translate(0,10)"); // 调整图例位置
+
+                // 状态图例数据
+                const statuses = [
+                    { name: "待处理", color: "steelblue" },
+                    { name: "已领料", color: "green" }
+                ];
+
+                statuses.forEach((status, index) => {
+                    // 绘制颜色方框
+                    legend.append("rect")
+                        .attr("x", 10)
+                        .attr("y", index * 20)
+                        .attr("width", 18)
+                        .attr("height", 18)
+                        .attr("fill", status.color);
+
+                    // 添加状态文本
+                    legend.append("text")
+                        .attr("x", 30)
+                        .attr("y", index * 20 + 14)
+                        .text(status.name);
+                });
+            }
+
+            // 从后端获取任务数据
+            fetch(`/production/plans/get_plans/`)  
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok ' + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    tasks = data.map(d => {
+                        d.start_date = new Date(d.start_date);
+                        d.start_date.setDate(d.start_date.getDate() + 1);
+                        d.end_date = new Date(d.start_date);
+                        d.end_date.setDate(d.end_date.getDate() + d.duration);
+                        return d;
+                    });
+
+                    // 设置默认时间范围
+                    const now = new Date();
+                    const tenDaysAgo = new Date(now);
+                    const tenDaysFromnow = new Date(now);
+                    tenDaysAgo.setDate(now.getDate() - 10);
+                    tenDaysAgo.setHours(0,0,0,0);
+                    drawChart(tenDaysAgo);
+                })
+                .catch(error => console.error('Error fetching data:', error));
+
+                // 绑定更新按钮点击事件
+            document.getElementById("update-button").addEventListener("click", () => {
+                const startDate = new Date(document.getElementById("start-date").value);
+                drawChart(startDate);
+            });
+        </script>
+    </div>
+</body>
+</html>
+
+{% endblock %}

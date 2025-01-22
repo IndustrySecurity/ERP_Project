@@ -156,7 +156,7 @@
                 <ul class="nav flex-column ms-3">
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/production/plans/' %}active{% endif %}" 
-                           href="{% url 'production:production_order_list' %}">
+                           href="{% url 'production:production_plan' %}">
                             <i class="fas fa-calendar-alt"></i> 生产计划
                         </a>
                     </li>
@@ -173,8 +173,8 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/production/receipts/' %}active{% endif %}" 
-                           href="{% url 'production:production_order_list' %}">
+                        <a class="nav-link {% if request.path == '/production/warehousing/' %}active{% endif %}" 
+                           href="{% url 'production:product_warehousing_list' %}">
                             <i class="fas fa-box"></i> 生产入库
                         </a>
                     </li>

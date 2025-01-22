@@ -31,12 +31,12 @@
                 <td>{{ requisition.production_order.order_number }}</td>
                 <td>
                     {% for material in requisition.productionmaterial_set.all %}
-                        {{ material.material.name }} - 数量: {{ material.quantity }} <br>
+                        {{ material.material.name }} -  {{ material.quantity }} <br>
                     {% endfor %}
                 </td>
                 <td>{{ requisition.responsible_person.username }}</td> 
                 <td>
-                    <button class="btn btn-warning btn-sm edit-requisition" data-id="{{ requisition.pk }}">编辑</button>
+                    <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#viewRequisitionModal" onclick="viewRequisitionDetails({{ requisition.pk }})">查看</button>
                     <button class="btn btn-danger btn-sm delete-requisition" data-id="{{ requisition.pk }}">删除</button>
                 </td>
             </tr>
@@ -69,9 +69,9 @@
     </nav>
 </div>
 
-<!-- 创建/编辑领料单模态框 -->
+<!-- 创建领料单模态框 -->
 <div class="modal fade" id="requisitionModal" tabindex="-1" aria-labelledby="requisitionModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">  <!-- 使用 modal-lg 提高宽度 -->
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="requisitionModalLabel">创建领料单</h5>
@@ -104,18 +104,11 @@
                                 <tr>
                                     <th>材料</th>
                                     <th>数量</th>
+                                    <th>现有库存(产线仓库+原材料仓库)</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for required_material in required_materials %}
-                                <tr>
-                                    <td>{{ required_material.material.name }}</td>
-                                    <td>
-                                        <input type="hidden" name="materials" value="{{ required_material.material.id }}">
-                                        <input type="number" class="form-control" name="quantities" value="{{ required_material.quantity }}" required>
-                                    </td>
-                                </tr>
-                                {% endfor %}
+                                <!-- 在这里添加表格行 -->
                             </tbody>
                         </table>
                     </div>
@@ -129,6 +122,65 @@
         </div>
     </div>
 </div>
+
+<!-- 查看领料单模态框 -->
+<div class="modal fade" id="viewRequisitionModal" tabindex="-1" aria-labelledby="viewRequisitionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewRequisitionModalLabel">领料单详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- 基础信息 -->
+                <h5>基础信息</h5>
+                <table class="table table-bordered">
+                    <tbody>
+                        <tr>
+                            <th>领料单编号</th>
+                            <td id="viewRequisitionNumber"></td>
+                        </tr>
+                        <tr>
+                            <th>生产工单编号</th>
+                            <td id="viewProductionOrder"></td>
+                        </tr>
+                        <tr>
+                            <th>负责人</th>
+                            <td id="viewResponsiblePerson"></td>
+                        </tr>
+                        <tr>
+                            <th>创建时间</th>
+                            <td id="viewCreateTime"></td>
+                        </tr>
+                        <tr>
+                            <th>备注</th>
+                            <td id="viewRequisitionRemarks"></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- 领料项 -->
+                <h5 class="mt-4">领料项</h5>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>材料名称</th>
+                            <th>数量</th>
+                            <th>现有库存(产线仓库+原材料仓库)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="viewRequisitionItems"></tbody>
+                </table>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" onclick="printRequisitionDetails()">打印</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -159,13 +211,24 @@
                         if (data.success) {
                             data.required_materials.forEach(material => {
                                 const row = document.createElement("tr");
+                                // 动态设置库存数量的颜色
+                                let stockInputClass = "";
+                                const totalQuantity = parseFloat(material.production_line_quantity) + parseFloat(material.raw_material_quantity); // 计算总库存
+                                if (parseFloat(totalQuantity) < parseFloat(material.quantity)) {
+                                    stockInputClass = "bg-danger"; // 如果库存数量小于需求，设置为红色背景
+                                }
+                                // 更新行的 innerHTML
                                 row.innerHTML = `
                                     <td>${material.material_name}</td>
                                     <td>
-                                        <input type="hidden" name="materials" value="${material.material_id}">
-                                        <input type="number" class="form-control" name="quantities" value="${material.quantity}" required>
+                                        <input type="number" class="form-control" name="quantities" value="${material.quantity}" readonly>
                                     </td>
-                                `;
+                                    <td> 
+                                        <input type="text" class="form-control ${stockInputClass}" name="materialstock_quantity" value="${totalQuantity} (${material.production_line_quantity} + ${material.raw_material_quantity})" readonly>
+                                        <input type="hidden" name="materials" value="${material.material_id}">
+                                    </td>
+                                `;                                     
+                                                
                                 tableBody.appendChild(row);
                             });
                         } else {
@@ -185,46 +248,6 @@
             document.getElementById('requisitionForm').action = '/production/requisitions/create/'; // 设置 action 为创建接口
         });
         
-        // 监听编辑按钮
-        document.querySelectorAll('.edit-requisition').forEach(button => {
-            button.addEventListener('click', function () {
-                document.getElementById('requisitionModalLabel').innerText = '编辑领料单'; // 设置为编辑标题
-                const requisitionId = this.getAttribute('data-id'); // 获取领料单 ID
-        
-                // 动态设置表单的 action URL，根据领料单 ID 指向编辑接口
-                const requisitionForm = document.getElementById('requisitionForm');
-                requisitionForm.action = `/production/requisitions/edit/${requisitionId}/`; // 设置表单提交 URL
-                
-                // 使用 Fetch API 加载领料单数据
-                fetch(`/production/requisitions/view/${requisitionId}/`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            // 填充表单字段 
-                            document.getElementById('productionOrderSelect').value = data.requisition.production_order.id; // 生产工单 ID
-                            document.getElementById('quantities').value = data.requisition.quantities; // 数量
-                            
-                            // 填充材料字段
-                            const materialsSelected = data.requisition.productionmaterial_set.map(material => material.material.id);
-                            materialsSelected.forEach(materialId => {
-                                const option = document.querySelector(`#materialsSelect option[value="${materialId}"]`);
-                                if (option) {
-                                    option.selected = true;
-                                }
-                            });
-                            
-                            // 显示模态框
-                            new bootstrap.Modal(document.getElementById('requisitionModal')).show();
-                        } else {
-                            alert('加载失败: ' + (data.message || '未知错误'));
-                        }
-                    })
-                    .catch(error => {
-                        console.error('请求失败:', error);
-                        alert('加载领料单失败，请检查网络或联系管理员');
-                    });
-            });
-        });
 
         // 监听表单提交事件
         document.getElementById('requisitionForm').addEventListener('submit', function(e) {
@@ -258,9 +281,9 @@
                 deleteRequisition(requisitionId);
             });
         });
-
+        
         function deleteRequisition(requisitionId) {
-            if (confirm('确定要删除该领料单吗？')) {
+            if (confirm('删除后工单状态恢复为“未处理”！！确定要删除该领料单吗？')) {
                 fetch(`/production/requisitions/delete/${requisitionId}/`, {
                     method: 'DELETE',
                     headers: {
@@ -275,7 +298,7 @@
                         alert(data.message); // 使用返回的消息
                         document.getElementById(`requisition-${requisitionId}`).remove(); // 移除 DOM 中的条目
                     } else {
-                        alert('删除失败，请重试：' + data.message);
+                        alert('删除失败，' + data.message);
                     }
                 })
                 .catch(error => {
@@ -283,6 +306,93 @@
                 });
             }
         }
+        
     });
+    function viewRequisitionDetails(requisitionId) {
+        // 发送 AJAX 请求获取领料单数据
+        fetch(`/production/requisitions/view/${requisitionId}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const requisition = data.requisition;
+    
+                    // 填充基本信息
+                    document.getElementById('viewRequisitionNumber').innerText = requisition.materialrequisition_number;
+                    document.getElementById('viewProductionOrder').innerText = requisition.production_order.order_number;
+                    document.getElementById('viewResponsiblePerson').innerText = requisition.responsible_person.username;
+                    document.getElementById('viewCreateTime').innerText = new Date(requisition.created_at).toLocaleString();
+                    document.getElementById('viewRequisitionRemarks').innerText = requisition.remarks || '无';
+    
+                    // 填充领料项
+                    const requisitionItemsBody = document.getElementById('viewRequisitionItems');
+                    requisitionItemsBody.innerHTML = ''; // 清空当前内容
+                    requisition.productionmaterial_set.forEach(item => {
+                        const row = document.createElement('tr');
+                        const totalQuantity = parseFloat(item.production_line_quantity) + parseFloat(item.raw_material_quantity); // 计算总库存
+                        if (parseFloat(totalQuantity) < parseFloat(item.quantity)) {
+                            // 如果 totalQuantity 小于 item.quantity，添加红色样式
+                            row.innerHTML = `
+                                <td>${item.material.name}</td>
+                                <td>${item.quantity}</td>
+                                <td style="color: red;">${totalQuantity} (${item.production_line_quantity} + ${item.raw_material_quantity})</td>
+                            `;
+                        } else {
+                            // 否则正常显示
+                            row.innerHTML = `
+                                <td>${item.material.name}</td>
+                                <td>${item.quantity}</td>
+                                <td>${totalQuantity} (${item.production_line_quantity} + ${item.raw_material_quantity})</td>
+                            `;
+                        }
+                        requisitionItemsBody.appendChild(row);
+                    });
+    
+                } else {
+                    alert(data.message || '加载失败，请重试。');
+                }
+            })
+            .catch(error => {
+                console.error('请求失败:', error);
+                alert('无法加载领料单详情，请检查网络或联系管理员。');
+            });
+    }
+
+    function printRequisitionDetails() {
+        const modalContent = document.querySelector('#viewRequisitionModal .modal-body').innerHTML;
+    
+        // 创建打印窗口
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>领料单详情打印</title>
+                    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .table { width: 100%; margin-bottom: 1rem; border-collapse: collapse; }
+                        .table-bordered { border: 1px solid #dee2e6; }
+                        .table-bordered th, .table-bordered td { border: 1px solid #dee2e6; padding: 8px; text-align: left; }
+                        .table-striped tbody tr:nth-of-type(odd) { background-color: rgba(0, 0, 0, 0.05); }
+                        h3 { text-align: center; margin-bottom: 20px; }
+                        
+                        @media print {
+                            /* 确保在打印时排列整齐 */
+                            body { -webkit-print-color-adjust: exact; color-adjust: exact; }
+                            h3 { page-break-after: avoid; }
+                            .table { page-break-inside: avoid; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h3>订单详情</h3>
+                    ${modalContent}
+                </body>
+            </html>
+        `);
+
+    
+        printWindow.document.close();
+        printWindow.print();
+    }
 </script>
 {% endblock %}
