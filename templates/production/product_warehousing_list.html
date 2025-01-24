@@ -121,8 +121,9 @@
                                 <thead>
                                     <tr>
                                         <th>物料名称</th>
-                                        <th>预期入库数量</th>
-                                        <th>实际入库数量</th>
+                                        <th>销售订单需求数量</th>
+                                        <th>工单安排数量</th>
+                                        <th>实际生产数量</th>
                                     </tr>
                                 </thead>
                                 <tbody id="orderItemsBody">
@@ -178,11 +179,14 @@
                             <tr>
                                 <td>${item.name}</td>
                                 <td>
-                                <input type="number" class="form-control" name="expected_quantities[]" value="${item.expected_quantity}" readonly>
+                                <input type="number" class="form-control" name="sales_order_quantities[]" value="${item.sales_order_quantity}" readonly>
+                                </td>
+                                <td>
+                                <input type="number" class="form-control" name="production_order_quantities[]" value="${item.production_order_quantity}" readonly>
                                 </td>
                                 <td>
                                     <input type="hidden" name="product_ids[]" value="${item.id}">
-                                    <input type="number" class="form-control" name="actual_quantities[]" min="0" max="${item.actual_quantity}" value="${item.actual_quantity}" required>
+                                    <input type="number" class="form-control" name="actual_quantities[]" min="0" max="${item.production_order_quantity}" value="${item.production_order_quantity}" required>
                                 </td>
                             </tr>
                         `;

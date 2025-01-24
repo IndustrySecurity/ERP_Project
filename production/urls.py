@@ -10,6 +10,7 @@ urlpatterns = [
 
     # 生产工单
     path('orders/', views.production_order_list, name='production_order_list'),
+    path('orders/get_products/<int:pk>/', views.get_sales_order_products, name='get_sales_order_products'),  #获取产品
     path('orders/create/', views.production_order_create, name='production_order_create'),
     path('orders/view/<int:pk>/', views.view_order, name='view_order'),
     path('orders/edit/<int:pk>/', views.production_order_edit, name='edit_order'),

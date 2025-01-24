@@ -21,6 +21,7 @@
                 <th>产线</th>
                 <th>计划开工时间</th>
                 <th>计划完工时间</th>
+                <th>工单项</th>
                 <th>负责人</th>
                 <th>备注</th>  
                 <th>状态</th>  
@@ -36,6 +37,14 @@
                 <td>{{ order.production_line.name }}</td>
                 <td>{{ order.planned_start_time|date:"Y-m-d" }}</td>
                 <td>{{ order.planned_end_time|date:"Y-m-d" }}</td>
+                <td>
+                    <ul>
+                        {% for item in order.productionorderitem_set.all %}
+                        <li>{{ item.product.name }} - {{ item.quantity }}</li>
+                        {% endfor %}
+                    </ul>
+                </td>
+                
                 <td>{{ order.responsible_person }}</td>
                 <td>{{ order.remarks|default:"无备注" }}</td>  <!-- 显示备注，若无则显示“无备注” -->
                 <td>{{ order.get_status_display }}</td>  <!-- 使用 get_status_display 获取状态的可读形式 -->
@@ -74,9 +83,9 @@
     </nav>
 </div>
 
-<!-- 创建/编辑工单模态框 -->
+<!-- 创建工单模态框 -->
 <div class="modal fade" id="orderModal" tabindex="-1" aria-labelledby="orderModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="orderModalLabel">创建工单</h5>
@@ -85,31 +94,53 @@
             <div class="modal-body">
                 <form id="orderForm" action="/production/orders/create/" method="post"> <!-- 设置创建的 action -->
                     {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="sales_order" class="form-label">销售订单</label>
-                        <select class="form-select" name="sales_order" id="salesOrderSelect" required>
-                            <option value="">选择销售订单</option>
-                            {% for sales_order in sales_orders %}
-                                <option value="{{ sales_order.id }}">{{ sales_order.order_number }}</option>
-                            {% endfor %}
-                        </select>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="sales_order" class="form-label">销售订单</label>
+                            <select class="form-select" name="sales_order" id="salesOrderSelect" required>
+                                <option value="">选择销售订单</option>
+                                {% for sales_order in sales_orders %}
+                                    <option value="{{ sales_order.id }}">{{ sales_order.order_number }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="production_line" class="form-label">产线</label>
+                            <select class="form-select" name="production_line" id="productionLineSelect" required>
+                                <option value="">选择产线</option>
+                                {% for line in production_lines %}
+                                    <option value="{{ line.id }}">{{ line.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="production_line" class="form-label">产线</label>
-                        <select class="form-select" name="production_line" id="productionLineSelect" required>
-                            <option value="">选择产线</option>
-                            {% for line in production_lines %}
-                                <option value="{{ line.id }}">{{ line.name }}</option>
-                            {% endfor %}
-                        </select>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="planned_start_time" class="form-label">计划开工时间</label>
+                            <input type="date" class="form-control" name="planned_start_time" id="planned_start_time" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="planned_end_time" class="form-label">计划完工时间</label>
+                            <input type="date" class="form-control" name="planned_end_time" id="planned_end_time" required>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="planned_start_time" class="form-label">计划开工时间</label>
-                        <input type="date" class="form-control" name="planned_start_time" id="planned_start_time" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="planned_end_time" class="form-label">计划完工时间</label>
-                        <input type="date" class="form-control" name="planned_end_time" id="planned_end_time" required>
+                    <!-- 产品项 -->
+                    <div id="orderItems" class="col-md-12 mt-3">
+                        <label class="form-label">工单生产项</label>
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>产品名称</th>
+                                    <th>销售订单需求数量</th>
+                                    <th>生产数量</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orderItemsBody">
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted">请选择销售订单以加载产品项</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                     <div class="mb-3">
                         <label for="remarks" class="form-label">备注</label>  <!-- 添加备注字段 -->
@@ -118,6 +149,81 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                         <button type="submit" class="btn btn-success" id="saveButton">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑工单模态框 -->
+<div class="modal fade" id="editOrderModal" tabindex="-1" aria-labelledby="editOrderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editOrderModalLabel">编辑工单</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editOrderForm" action="/production/orders/edit/" method="post"> <!-- 设置编辑的 action -->
+                    {% csrf_token %}
+                    <input type="hidden" name="order_id" id="orderId"> <!-- 隐藏的工单 ID 字段 -->
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="edit_sales_order" class="form-label">销售订单</label>
+                            <select class="form-select" name="sales_order" id="editSalesOrderSelect" required>
+                                <option value="">选择销售订单</option>
+                                {% for sales_order in sales_orders %}
+                                    <option value="{{ sales_order.id }}">{{ sales_order.order_number }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_production_line" class="form-label">产线</label>
+                            <select class="form-select" name="production_line" id="editProductionLineSelect" required>
+                                <option value="">选择产线</option>
+                                {% for line in production_lines %}
+                                    <option value="{{ line.id }}">{{ line.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="edit_planned_start_time" class="form-label">计划开工时间</label>
+                            <input type="date" class="form-control" name="planned_start_time" id="editPlannedStartTime" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_planned_end_time" class="form-label">计划完工时间</label>
+                            <input type="date" class="form-control" name="planned_end_time" id="editPlannedEndTime" required>
+                        </div>
+                    </div>
+                    <!-- 产品项 -->
+                    <div id="editOrderItems" class="col-md-12 mt-3">
+                        <label class="form-label">工单生产项</label>
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>产品名称</th>
+                                    <th>销售订单需求数量</th>
+                                    <th>生产数量</th>
+                                </tr>
+                            </thead>
+                            <tbody id="editOrderItemsBody">
+                                <!-- 根据选择的销售订单后，加载相应的产品项 -->
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted">请选择销售订单以加载产品项</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_remarks" class="form-label">备注</label>  <!-- 编辑备注字段 -->
+                        <textarea class="form-control" name="remarks" id="editRemarks" rows="3"></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-success" id="editSaveButton">保存</button>
                     </div>
                 </form>
             </div>
@@ -136,6 +242,44 @@
             });
         });
 
+        // 动态加载工单项
+        document.getElementById('salesOrderSelect').addEventListener('change', function () {
+            const orderId = this.value;
+            const orderItemsBody = document.getElementById('orderItemsBody');
+
+            if (!orderId) {
+                orderItemsBody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">请选择销售订单以加载产品项</td></tr>`;
+                return;
+            }
+
+            fetch(`/production/orders/get_products/${orderId}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.items.length > 0) {
+                    orderItemsBody.innerHTML = '';
+                    data.items.forEach(item => {
+                        orderItemsBody.innerHTML += `
+                            <tr>
+                                <td>${item.name}</td>
+                                <td>
+                                <input type="number" class="form-control" name="demand_quantities[]" value="${item.expected_quantity}" readonly>
+                                </td>
+                                <td>
+                                    <input type="hidden" name="product_ids[]" value="${item.id}">
+                                    <input type="number" class="form-control" name="production_quantities[]" min="0"  value="${item.actual_quantity}" required>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    orderItemsBody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">此销售订单无项</td></tr>`;
+                }
+            })
+            .catch(() => {
+                orderItemsBody.innerHTML = `<tr><td colspan="3" class="text-center text-danger">加载失败，请稍后再试</td></tr>`;
+            });
+        });
+
         // 监听创建工单按钮
         document.getElementById('createOrderButton').addEventListener('click', function() {
             document.getElementById('orderForm').reset(); // 重置表单
@@ -146,13 +290,14 @@
         // 监听编辑按钮
         document.querySelectorAll('.edit-order').forEach(button => {
             button.addEventListener('click', function () {
-                document.getElementById('orderModalLabel').innerText = '编辑工单'; // 设置为编辑标题
+                document.getElementById('editOrderModalLabel').innerText = '编辑工单'; // 设置为编辑标题
                 const orderId = this.getAttribute('data-id'); // 获取工单 ID
         
                 // 动态设置表单的 action URL，根据工单 ID 指向编辑接口
-                const orderForm = document.getElementById('orderForm');
+                const orderForm = document.getElementById('editOrderForm');
                 orderForm.action = `/production/orders/edit/${orderId}/`; // 设置表单提交 URL
                 
+                const editOrderItemsBody = document.getElementById('editOrderItemsBody');
                 // 使用 Fetch API 加载工单数据
                 fetch(`/production/orders/view/${orderId}/`)
                     .then(response => response.json())
@@ -160,16 +305,34 @@
                         console.log('加载的工单数据:', data.order); // 调试日志
                         if (data.success) {
                             // 填充表单字段 
-                            document.getElementById('salesOrderSelect').value = data.order.sales_order; // 销售订单 ID
-                            document.getElementById('productionLineSelect').value = data.order.production_line; // 产线 ID
-                            document.getElementById('planned_start_time').value = data.order.planned_start_time.split('T')[0]; // 计划开工时间
-                            document.getElementById('planned_end_time').value = data.order.planned_end_time.split('T')[0]; // 计划完工时间
-                            
+                            document.getElementById('editSalesOrderSelect').value = data.order.sales_order; // 销售订单 ID
+                            document.getElementById('editProductionLineSelect').value = data.order.production_line; // 产线 ID
+                            document.getElementById('editPlannedStartTime').value = data.order.planned_start_time.split('T')[0]; // 计划开工时间
+                            document.getElementById('editPlannedEndTime').value = data.order.planned_end_time.split('T')[0]; // 计划完工时间
+
                             // 填充备注字段
-                            document.getElementById('remarks').value = data.order.remarks || ''; // 备注信息，默认为空
-                            
+                            document.getElementById('editRemarks').value = data.order.remarks || ''; // 备注信息，默认为空
+                            if (data.order.order_items.length > 0) {
+                                editOrderItemsBody.innerHTML = '';
+                                data.order.order_items.forEach(item => {
+                                    editOrderItemsBody.innerHTML += `
+                                        <tr>
+                                            <td>${item.product_name}</td>
+                                            <td>
+                                            <input type="number" class="form-control" name="demand_quantities[]" value="${item.demand_quantity}" readonly>
+                                            </td>
+                                            <td>
+                                                <input type="hidden" name="product_ids[]" value="${item.product_id}">
+                                                <input type="number" class="form-control" name="production_quantities[]" min="0"  value="${item.quantity}" required>
+                                            </td>
+                                        </tr>
+                                    `;
+                                });
+                            } else {
+                                editOrderItemsBody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">此工单无项</td></tr>`;
+                            }
                             // 显示模态框
-                            new bootstrap.Modal(document.getElementById('orderModal')).show();
+                            new bootstrap.Modal(document.getElementById('editOrderModal')).show();
                         } else {
                             alert('加载失败: ' + (data.message || '未知错误'));
                         }
@@ -181,7 +344,7 @@
             });
         });
 
-        // 监听表单提交事件
+        // 监听创建工单表单提交事件
         document.getElementById('orderForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const formData = new FormData(this);
@@ -213,6 +376,37 @@
                 });
         });
 
+        // 监听编辑表单表单提交事件
+        document.getElementById('editOrderForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const actionUrl = this.action; // 动态获取当前 form 的 action
+            fetch(actionUrl, {
+                method: "POST",
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}', // 确保 CSRF 令牌被发送
+                },
+                body: formData,
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if(data.warning) {
+                            alert((actionUrl.includes("create") ? "工单创建成功！" : "工单编辑成功！") + JSON.stringify(data.warning));
+                            location.reload(); // 刷新页面
+                        }
+                        else {
+                            alert(actionUrl.includes("create") ? "工单创建成功！" : "工单编辑成功！");
+                            location.reload(); // 刷新页面
+                        }
+                    } else {
+                        alert((actionUrl.includes("create") ? "创建失败：" : "编辑失败：") + JSON.stringify(data.message));
+                    }
+                })
+                .catch(error => {
+                    alert("请求失败：" + error.message);
+                });
+        });
         document.querySelectorAll('.delete-order').forEach(button => {
             button.addEventListener('click', function() {
                 const orderId = this.getAttribute('data-id');

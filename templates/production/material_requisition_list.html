@@ -232,7 +232,7 @@
                                 tableBody.appendChild(row);
                             });
                         } else {
-                            alert("无法获取材料信息，请重试。");
+                            alert('材料获取失败，' + data.message);
                         }
                     })
                     .catch(error => {

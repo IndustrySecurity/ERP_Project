@@ -9,7 +9,7 @@ from django.views import View
 from django.db.models import Q
 
 from warehouse.models import MaterialStock, ProductStock, WarehouseLocation
-from .models import MaterialRequisition, ProductionMaterial, ProductionOrder, WarehousedProduct
+from .models import MaterialRequisition, ProductionMaterial, ProductionOrder, ProductionOrderItem, WarehousedProduct
 from master_data.models import Material, ProductionLine, Recipe, RecipeMaterial  
 from django.core.paginator import Paginator
 from sales.models import SalesOrder,SalesOrderItem
@@ -34,6 +34,7 @@ def production_order_list(request):
     sales_orders = SalesOrder.objects.filter(status='pending')
     users = CustomUser.objects.all()
     production_lines = ProductionLine.objects.all()
+ 
     # 分页处理
     paginator = Paginator(orders, 10)  # 每页显示 10 条记录
     page_number = request.GET.get('page', 1)
@@ -57,15 +58,20 @@ def production_order_create(request):
             production_line_id = request.POST.get('production_line')
             planned_start_time = request.POST.get('planned_start_time')
             planned_end_time = request.POST.get('planned_end_time')
+            products = request.POST.getlist('product_ids[]')
+            production_quantities = request.POST.getlist('production_quantities[]')
             remarks = request.POST.get('remarks', '')  # 获取备注信息
             status = 'pending'  # 默认状态为待处理
 
             logger.debug(f"Sales Order ID: {sales_order_id}, Production Line ID: {production_line_id}")
-
+            
             # 获取相关对象
             sales_order = get_object_or_404(SalesOrder, pk=sales_order_id)
             production_line = get_object_or_404(ProductionLine, pk=production_line_id)
 
+            sales_order_items = SalesOrderItem.objects.filter(order=sales_order)
+            if not sales_order_items:
+                return JsonResponse({'success': False, 'message': '该订单没有订单项，无法创建工单！'})
             # 时间格式转换
             planned_start_time_dt = datetime.datetime.strptime(planned_start_time, '%Y-%m-%d')
             planned_end_time_dt = datetime.datetime.strptime(planned_end_time, '%Y-%m-%d')
@@ -87,6 +93,12 @@ def production_order_create(request):
                 )
                 logger.info(f"Created production order: {order.order_number}")
             
+            for product,quantity in zip(products,production_quantities):
+                ProductionOrderItem.objects.create(
+                    production_order=order,
+                    product_id=product,
+                    quantity=quantity
+                )
             if sales_order.delivery_time < planned_end_time_dt.date():
                 return JsonResponse({'success': True, 'message': '生产工单创建成功！', 'warning': 'warning:计划完成时间晚于订单交付时间！！！', 'order_number': order.order_number})
             return JsonResponse({'success': True, 'message': '生产工单创建成功！', 'order_number': order.order_number})
@@ -101,6 +113,25 @@ def production_order_create(request):
 
 def view_order(request, pk):
     order = get_object_or_404(ProductionOrder, pk=pk)  # 获取指定 ID 的工单
+    if order.status in ("completed", "material_collected"):
+        return JsonResponse({'success': False, 'message': '已领料/已完成的工单无法更改！'})
+    # 获取与该工单相关的所有生产项
+    order_items = ProductionOrderItem.objects.filter(production_order=order)
+    sales_order_items = SalesOrderItem.objects.filter(order=order.sales_order)
+
+    # 创建一个字典来存储销售订单项，根据产品 ID 作为键
+    sales_order_dict = {item.product.id: item for item in sales_order_items}
+
+    # 将生产项数据格式化为字典列表
+    order_items_data = [
+        {
+            'product_id': item.product.id,  # 产品 ID
+            'product_name': item.product.name,  # 产品名
+            'quantity': float(item.quantity),  # 数量
+            'demand_quantity': float(sales_order_dict.get(item.product.id, {}).quantity)  # 获取需求数量
+        }
+        for item in order_items
+    ]
     data = {
         'success': True,
         'order': {
@@ -111,6 +142,7 @@ def view_order(request, pk):
             'planned_end_time': order.planned_end_time.isoformat(),
             'responsible_person': order.responsible_person,
             'remarks': order.remarks,  
+            'order_items': order_items_data,  # 添加生产项
         },
     }
     return JsonResponse(data)
@@ -124,12 +156,30 @@ def production_order_edit(request, pk):
             production_line_id = request.POST.get('production_line')
             planned_start_time = request.POST.get('planned_start_time')
             planned_end_time = request.POST.get('planned_end_time')
+            products = request.POST.getlist('product_ids[]')
+            production_quantities = request.POST.getlist('production_quantities[]')
+            remarks = request.POST.get('remarks', '')  # 获取备注信息            
+
+            # 时间格式转换
+            planned_start_time_dt = datetime.datetime.strptime(planned_start_time, '%Y-%m-%d')
+            planned_end_time_dt = datetime.datetime.strptime(planned_end_time, '%Y-%m-%d')
+
+            # 判断开始时间是否早于结束时间
+            if planned_start_time_dt > planned_end_time_dt:
+                return JsonResponse({'success': False, 'message': '开始时间必须早于结束时间。'})
+            print(products)
+            print(production_quantities)
+            for product,quantity in zip(products,production_quantities):
+                production_order_item = ProductionOrderItem.objects.filter(production_order=order,product_id=product).first()
+                production_order_item.quantity = quantity
+                production_order_item.save()
 
             # 更新生产工单的字段
             order.sales_order_id = sales_order_id  # 确保 sales_order_id 是有效的 ID
             order.production_line_id = production_line_id  # 确保 production_line_id 是有效的 ID
             order.planned_start_time = planned_start_time
             order.planned_end_time = planned_end_time
+            order.remarks = remarks
 
             # 保存修改后的生产工单
             order.save()
@@ -188,8 +238,7 @@ def get_materials(request,pk):
         try:
             # 获取生产工单
             production_order = get_object_or_404(ProductionOrder, id=production_order_id)
-            sales_order = production_order.sales_order.id
-            items = SalesOrderItem.objects.filter(order_id=sales_order)
+            items = ProductionOrderItem.objects.filter(production_order=production_order)
             row_material_warehouse_location = WarehouseLocation.objects.filter(name = '原材料仓库').first()
             production_line_warehouse_location = WarehouseLocation.objects.filter(name = '产线仓库').first()
             # 初始化所需材料列表
@@ -235,6 +284,8 @@ def get_materials(request,pk):
                                 'raw_material_quantity': raw_material_quantity,
                                 'production_line_quantity': production_line_quantity,
                             })
+                else:
+                    return JsonResponse({'success': False, 'message': f'产品"{product.name}"没有配方！请添加配方后重试。'})
             return JsonResponse({
                         'success': True,
                         'production_order_id': production_order.id,
@@ -392,6 +443,29 @@ def product_warehousing_list(request):
     }
     return render(request, 'production/product_warehousing_list.html', context)
 
+def get_sales_order_products(request, pk):
+
+    # 获取指定的工单对象，如果不存在则返回 404
+    sales_order = get_object_or_404(SalesOrder, pk=pk)
+
+    # 获取与工单关联的产品
+    salesorderitems = SalesOrderItem.objects.filter(order=sales_order)
+    
+    product_data = []
+    for salesorderitem in salesorderitems:
+        product_data.append({
+            'id': salesorderitem.product.id,
+            'name': salesorderitem.product.name,
+            'expected_quantity': salesorderitem.quantity,  # 预期数量
+            'actual_quantity': salesorderitem.quantity,  # 实际数量
+        })
+    response_data = {
+        'success': True,
+        'items': product_data
+    }
+    
+    return JsonResponse(response_data)
+
 def get_products(request, pk):
 
     # 获取指定的工单对象，如果不存在则返回 404
@@ -402,10 +476,12 @@ def get_products(request, pk):
     
     product_data = []
     for salesorderitem in salesorderitems:
+        productionorderitem = ProductionOrderItem.objects.filter(production_order=production_order,product=salesorderitem.product).first()
         product_data.append({
             'id': salesorderitem.product.id,
             'name': salesorderitem.product.name,
-            'expected_quantity': salesorderitem.quantity,  # 预期数量
+            'sales_order_quantity': salesorderitem.quantity,  # 销售订单数量
+            'production_order_quantity': productionorderitem.quantity,   # 工单数量
             'actual_quantity': salesorderitem.quantity,  # 实际数量
         })
     response_data = {
@@ -429,19 +505,55 @@ def product_receipt_create(request):
         #判断产线仓库材料是否足够
         insufficientmaterial = []
 
-        materialrequisition = MaterialRequisition.objects.filter(production_order=productionorder).first()
-        productionmaterial = ProductionMaterial.objects.filter(materialrequisition=materialrequisition)
+        items = ProductionOrderItem.objects.filter(production_order=productionorder)
+
+        # 初始化所需材料列表
+        required_materials = []
+        # 将 product_ids 和 actual_quantities 创建成字典
+        product_quantity_mapping = {
+            product_id: Decimal(quantity) 
+            for product_id, quantity in zip(product_ids, actual_quantities)
+        }
+        for item in items:
+            # 判断产品 ID 是否在传入的 product_ids 中，并且获取对应的实际数量
+            actual_quantity = product_quantity_mapping.get(str(item.product.id), 0)
+            # 获取产品配方
+            product = item.product
+            recipe = Recipe.objects.filter(product=product).first()
+            
+            if recipe:
+                recipematerials = RecipeMaterial.objects.filter(recipe=recipe)
+                
+                for material in recipematerials:  # 获取配方中的每种材料
+                    material_id = material.material.id
+                    material_name = material.material.name
+                    material_quantity = material.quantity * actual_quantity  # 计算所需的总数量
+
+                    # 查找是否已经存在该材料
+                    existing_material = next((m for m in required_materials if m['material_id'] == material_id), None)
+                    
+                    if existing_material:
+                        # 如果已存在，增加数量
+                        existing_material['quantity'] += material_quantity
+                    else:
+                        # 否则，添加新材料
+                        required_materials.append({
+                            'material_id': material_id,
+                            'material_name': material_name,
+                            'quantity': material_quantity,
+                        })
+        
         productionline_warehouse = WarehouseLocation.objects.filter(name='产线仓库').first()
-        for item in productionmaterial:
-            materialstoct = MaterialStock.objects.filter(material=item.material, location=productionline_warehouse).first()
+        for item in required_materials:
+            materialstoct = MaterialStock.objects.filter(material_id=item['material_id'], location=productionline_warehouse).first()
             if materialstoct is None:
-                MaterialStock.objects.create(material=item.material, location=productionline_warehouse, quantity=-Decimal(item.quantity))
-                if -Decimal(item.quantity)<0:
-                    insufficientmaterial.append(item.material.name)
+                MaterialStock.objects.create(material_id=item['material_id'], location=productionline_warehouse, quantity=-Decimal(item['quantity']))
+                if -Decimal(item['quantity'])<0:
+                    insufficientmaterial.append(item['material_name'])
             else:
-                materialstoct.quantity-=Decimal(item.quantity)
+                materialstoct.quantity-=Decimal(item['quantity'])
                 if(materialstoct.quantity<0):
-                    insufficientmaterial.append(item.material.name)
+                    insufficientmaterial.append(item['material_name'])
                 materialstoct.save()
 
         for product_id, actual_quantity in zip(product_ids, actual_quantities):
@@ -493,6 +605,7 @@ def product_receipt_create(request):
             return JsonResponse({'success': True, 'message': '入库单创建成功！'})
     
     return JsonResponse({'success': False, 'message': '无效的请求'})
+
 
 def production_plan(request):
     return render(request, 'production/production_plan.html', {})
