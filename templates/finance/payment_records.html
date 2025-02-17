@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>付款记录管理</h2>
+
+    <!-- 检索框 -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <input type="text" id="searchPayment" class="form-control w-50" placeholder="搜索付款记录">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#paymentModal" id="createPaymentButton">
+            <i class="fas fa-plus"></i> 创建付款记录
+        </button>
+    </div>
+
+    <!-- 付款记录表格 -->
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>付款记录编号</th>
+                <th>采购订单编号</th>
+                <th>创建人</th>
+                <th>创建时间</th>
+                <th>更新人</th>
+                <th>更新时间</th>
+                <th>已付金额</th>
+                <th>总金额</th>
+                <th>付款进度</th> 
+                <th>操作</th>
+            </tr>
+        </thead>
+        
+        <tbody id="paymentTableBody">
+            {% for record in payment_records %}
+            <tr>
+                <td>{{ record.record_number }}</td>
+                <td>{{ record.purchase_order.order_number }}</td>
+                <td>{{ record.created_by.username|default:"-" }}</td>
+                <td>{{ record.created_at|date:"Y-m-d H:i:s" }}</td>
+                <td>{{ record.updated_by.username|default:"-" }}</td>
+                <td>{{ record.updated_at|date:"Y-m-d H:i:s" }}</td>
+                <td>{{ record.payment_amount }}</td>
+                <td>{{ record.purchase_order.total_price|floatformat:2 }}</td> <!-- 显示总金额 -->
+                <td style="width: 200px;">
+                    {% if record.payment_amount > 0 %}
+                        <div class="progress" style="width: 100%;">
+                            <div class="progress-bar" role="progressbar" style="width: {{ record.percentage|floatformat:2 }}%; background-color: #28a745;" aria-valuenow="{{ record.percentage|floatformat:2 }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ record.percentage|floatformat:2 }}%
+                            </div>
+                            <div class="progress-bar" role="progressbar" style="width: {{ record.remaining_percentage|floatformat:2 }}%; background-color: #add8e6; left: {{ record.percentage|floatformat:2 }}%;" aria-valuenow="{{ record.remaining_percentage|floatformat:2 }}" aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="text-muted">无付款记录</div>
+                    {% endif %}
+                </td>
+                <td>
+                    <button class="btn btn-warning btn-sm edit-payment" data-id="{{ record.id }}">添加付款</button>
+                    <button class="btn btn-danger btn-sm delete-payment" data-id="{{ record.id }}">删除</button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="10" class="text-center text-muted">暂无付款记录</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">上一页</a>
+            </li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if num == page_obj.number %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}">下一页</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    
+</div>
+
+<!-- 创建付款记录模态框 -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="paymentForm" action="/finance/payment_records/create/" method="post">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="paymentModalLabel">创建付款记录</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <!-- 采购订单选择 -->
+                        <div class="col-md-6">
+                            <label for="purchaseOrderSelect" class="form-label">采购订单</label>
+                            <select id="purchaseOrderSelect" name="purchase_order" class="form-select" required>
+                                <option value="">请选择采购订单</option>
+                                <!-- 动态加载采购订单列表 -->
+                            </select>
+                        </div>
+                        <!-- 付款金额 -->
+                        <div class="col-md-6">
+                            <label for="paymentAmount" class="form-label">付款金额</label>
+                            <input type="number" id="paymentAmount" name="payment_amount" class="form-control" value="0" min="0" required step="0.01">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 添加付款模态框 -->
+<div class="modal fade" id="addPaymentModal" tabindex="-1" aria-labelledby="addPaymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="addPaymentForm">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addPaymentModalLabel">添加付款记录</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <!-- 采购订单编号 -->
+                        <div class="col-md-12">
+                            <label for="addPurchaseOrderNumber" class="form-label">采购订单编号</label>
+                            <input type="text" id="addPurchaseOrderNumber" name="purchase_order_number" class="form-control" readonly>
+                        </div>
+                        <!-- 已付金额 -->
+                        <div class="col-md-6">
+                            <label for="addPaidAmount" class="form-label">已付金额</label>
+                            <input type="number" id="addPaidAmount" name="paid_amount" class="form-control" readonly>
+                        </div>
+                        <!-- 总金额 -->
+                        <div class="col-md-6">
+                            <label for="addTotalAmount" class="form-label">总金额</label>
+                            <input type="number" id="addTotalAmount" name="total_amount" class="form-control" readonly>
+                        </div>
+                        <!-- 付款金额 -->
+                        <div class="col-md-12">
+                            <label for="addPaymentAmount" class="form-label">付款金额</label>
+                            <input type="number" id="addPaymentAmount" name="payment_amount" class="form-control" value="0"  required step="0.01">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-success">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        document.getElementById("searchPayment").addEventListener("input", function () {
+            const query = this.value.toLowerCase(); // 获取搜索框内容并转为小写
+            document.querySelectorAll("#paymentTableBody tr").forEach(row => {
+                // 检查行中的文本内容是否包含查询字符串
+                row.style.display = Array.from(row.cells).some(cell => 
+                    cell.textContent.toLowerCase().includes(query)
+                ) ? "" : "none"; // 如果行中的任意单元格匹配，则显示，否则隐藏
+            });
+        });
+
+        const purchaseOrderSelect = document.getElementById("purchaseOrderSelect");
+
+        // 动态加载采购订单列表
+        document.getElementById("createPaymentButton").addEventListener("click", function () {
+            fetch("/finance/payment_records/view_purchase_orders")
+                .then(response => response.json())
+                .then(data => {
+                    purchaseOrderSelect.innerHTML = '<option value="">请选择采购订单</option>';
+                    data.orders.forEach(order => {
+                        purchaseOrderSelect.innerHTML += `<option value="${order.id}">${order.order_number}</option>`;
+                    });
+                });
+        });
+
+        // 添加付款记录的表单提交事件
+        document.getElementById("paymentForm").addEventListener("submit", function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const actionUrl = this.action;
+
+            fetch(actionUrl, {
+                method: "POST",
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}', // 确保 CSRF 令牌被发送
+                },
+                body: formData,
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload(); // 刷新页面
+                    } else {
+                        alert("创建失败：" + JSON.stringify(data.errors));
+                    }
+                })
+                .catch(error => {
+                    alert("请求失败：" + error.message);
+                });
+        });
+
+        // 删除付款记录
+        document.querySelectorAll('.delete-payment').forEach(button => {
+            button.addEventListener('click', function () {
+                const id = this.dataset.id;
+                if (confirm('确定要删除此付款记录吗？')) {
+                    fetch(`/finance/payment_records/delete/${id}/`, {
+                        method: 'DELETE',
+                        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('删除成功');
+                            location.reload();
+                        } else {
+                            alert('删除失败');
+                        }
+                    });
+                }
+            });
+        });
+
+        // 点击添加付款按钮
+        document.querySelectorAll('.edit-payment').forEach(button => {
+            button.addEventListener('click', function () {
+                const id = this.dataset.id;
+                fetch(`/finance/payment_records/view/${id}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // 填充添加付款记录表单
+                            const addPaymentForm = document.getElementById('addPaymentForm');
+                            addPaymentForm.action = `/finance/payment_records/edit/${id}/`; // 
+                            console.log(data);
+                            // 填充字段
+                            addPaymentForm.querySelector('#addPurchaseOrderNumber').value = data.record.purchase_order.number; // 显示采购订单编号
+                            addPaymentForm.querySelector('#addPaidAmount').value = data.record.payment_amount; // 显示已付金额
+                            addPaymentForm.querySelector('#addTotalAmount').value = parseFloat(data.record.purchase_order.total_price).toFixed(2); // 显示总金额
+                            addPaymentForm.querySelector('#addPaymentAmount').value = 0; // 重置付款金额输入框
+        
+                            // 显示模态框
+                            new bootstrap.Modal(document.getElementById('addPaymentModal')).show();
+                        } else {
+                            alert('加载失败');
+                        }
+                    });
+            });
+        });
+
+        // 添加付款的表单提交事件
+        document.getElementById("addPaymentForm").addEventListener("submit", function (e) {
+            e.preventDefault(); // 阻止默认表单提交行为
+
+            const formData = new FormData(this);
+            const actionUrl = this.action; // 获取表单的 action URL
+
+            fetch(actionUrl, {
+                method: "POST",
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}', // 确保 CSRF 令牌被发送
+                },
+                body: formData, // 表单数据
+            })
+                .then(response => response.json()) // 解析 JSON 响应
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message); // 提示成功消息
+                        location.reload(); // 刷新页面以更新数据
+                    } else {
+                        alert("创建失败：" + JSON.stringify(data.errors)); // 提示错误信息
+                    }
+                })
+                .catch(error => {
+                    alert("请求失败：" + error.message); // 提示请求错误
+                });
+        });
+    });
+</script>
+{% endblock %}

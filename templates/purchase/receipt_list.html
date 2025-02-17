@@ -105,6 +105,7 @@
                             <table class="table table-bordered">
                                 <thead>
                                     <tr>
+                                        <th>料号</th>
                                         <th>物料名称</th>
                                         <th>采购数量</th>
                                         <th>入库数量</th>
@@ -162,6 +163,7 @@
             data.items.forEach(item => {
                 orderItemsBody.innerHTML += `
                     <tr>
+                        <td>${item.material_number}</td>
                         <td>${item.material_name}</td>
                         <td>${item.quantity}</td>
                         <td>

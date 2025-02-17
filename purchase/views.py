@@ -242,6 +242,7 @@ def get_order_items(request, order_id):
     items = order.purchaseorderitem_set.all()
     results = [
         {
+            'material_number': item.material.material_number,
             'id': item.id,
             'material_id': item.material.id,
             'material_name': item.material.name,

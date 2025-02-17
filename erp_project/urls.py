@@ -15,6 +15,7 @@ urlpatterns = [
     path('sales/', include('sales.urls', namespace='sales')),
     path('production/', include('production.urls', namespace='production')),
     path('warehouse/', include('warehouse.urls', namespace='warehouse')),
+    path('finance/', include('finance.urls', namespace='finance')),
     path('home/', login_required(home_view), name='home'),
     path('', lambda request: redirect('login')),
 ]

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+{% extends "base.html" %}
+
+{% block content %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>财务统计</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .spacing {
+            margin-right: 20px;  /* 调整此值以增加或减少间距 */
+        }
+    </style>
+</head>
+<body>
+    <h1>财务统计 <small style="font-size: 0.5em;">(按记录创建时间查询)</small></h1>
+    <form method="post">
+        {% csrf_token %}
+        <label for="start_date">开始日期:</label>
+        <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
+        <label for="end_date">结束日期:</label>
+        <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
+        <button type="submit">提交</button>
+    </form>
+
+    <h2>统计结果</h2>
+    <p>
+        <span class="spacing">采购应付: {{ total_payables|floatformat:2 }} </span>
+        <span>采购实付: {{ total_payments|floatformat:2 }}</span>
+    </p>
+    <p>
+        <span class="spacing">销售应收: {{ total_receivables|floatformat:2 }}</span>
+        <span>销售实收: {{ total_receipts|floatformat:2 }}</span>
+    </p>
+
+    <canvas id="financeChart" width="400" height="200"></canvas>
+    
+    <script>
+        const ctx = document.getElementById('financeChart').getContext('2d');
+        const financeChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['采购应付', '采购实付', '销售应收', '销售实收'],
+                datasets: [{
+                    label: '金额',
+                    data: [{{ total_payables }}, {{ total_payments }}, {{ total_receivables }}, {{ total_receipts }}],
+                    backgroundColor: [
+                        'rgba(75, 192, 192, 0.2)',
+                        'rgba(153, 102, 255, 0.2)',
+                        'rgba(255, 159, 64, 0.2)',
+                        'rgba(255, 99, 132, 0.2)'
+                    ],
+                    borderColor: [
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(255, 159, 64, 1)',
+                        'rgba(255, 99, 132, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+{% endblock %}

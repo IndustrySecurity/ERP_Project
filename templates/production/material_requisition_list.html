@@ -221,7 +221,7 @@
                                 row.innerHTML = `
                                     <td>${material.material_name}</td>
                                     <td>
-                                        <input type="number" class="form-control" name="quantities" value="${material.quantity}" readonly>
+                                        <input type="number" class="form-control" name="quantities" value="${material.quantity}">
                                     </td>
                                     <td> 
                                         <input type="text" class="form-control ${stockInputClass}" name="materialstock_quantity" value="${totalQuantity} (${material.production_line_quantity} + ${material.raw_material_quantity})" readonly>

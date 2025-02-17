@@ -120,6 +120,7 @@ class Product(BaseModel):
 
 
 class Recipe(BaseModel):
+    recipe_number =  models.CharField(max_length=255, unique=True, verbose_name="配方编号")
     product = models.OneToOneField(Product, on_delete=models.CASCADE, verbose_name="产品")
     materials = models.ManyToManyField(Material, through='RecipeMaterial', verbose_name="原材料")
     description = models.TextField(blank=True, null=True, verbose_name="描述")  # 添加描述字段
@@ -129,6 +130,16 @@ class Recipe(BaseModel):
 
     def total_material_quantity(self):
         return sum([rm.quantity for rm in self.recipematerial_set.all()])
+    
+    def save(self, *args, **kwargs):
+        # 确保 recipe_number 唯一
+        if not self.pk and not self.recipe_number:  # 仅在新建时生成
+            prefix = "RP"
+            # 查询最新的订单编号后递增
+            last_recipe = Recipe.objects.order_by('-id').first()
+            next_id = (last_recipe.id + 1) if last_recipe else 1
+            self.recipe_number = f"{prefix}-{next_id:06d}"
+        super().save(*args, **kwargs)
 
 
 class RecipeMaterial(BaseModel):

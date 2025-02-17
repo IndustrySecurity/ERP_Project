@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .models import Material, Product, Recipe, Supplier, Customer, RecipeMaterial, MaterialCategory, ProductCategory, ProductionLine
 from .forms import MaterialForm, ProductForm, RecipeForm, SupplierForm, CustomerForm, ProductionLineForm
+from django.template.loader import render_to_string
 
 def material_list(request):
     """
@@ -397,6 +398,11 @@ def recipe_create(request):
 
         try:
             product = Product.objects.get(id=product_id)
+
+             # 检查该产品是否已有配方
+            if Recipe.objects.filter(product=product).exists():
+                return JsonResponse({'success': False, 'message': '该产品已存在配方'})
+            
             recipe = Recipe(product=product, description=description)
             recipe.save()
             for material_id, quantity in zip(materials_data, quantities):
@@ -452,6 +458,7 @@ def recipe_update(request, pk):
             return JsonResponse({'success': False, 'message': '所选材料不存在'})
 
     return JsonResponse({'success': False, 'message': '仅支持 GET 或 POST 请求'})
+
 
 def recipe_delete(request, pk):
     """删除配方视图"""

@@ -113,17 +113,17 @@
                         <h6>采购物料</h6>
                         <div id="materialList">
                             <div class="row g-3 material-item">
-                                <div class="col-md-4">
+                                <div class="col-md-6"> <!-- 把物料这一列从 col-md-4 改为 col-md-6 -->
                                     <label class="form-label">物料</label>
                                     <select class="form-select material-select" name="materials" required>
                                         <option value="">请选择物料</option>
                                     </select>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-2"> <!-- 减少其他列的宽度 -->
                                     <label class="form-label">单价</label>
                                     <input type="number" class="form-control unit-price" readonly>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <label class="form-label">数量</label>
                                     <input type="number" class="form-control quantity" name="quantities" required>
                                 </div>
@@ -171,7 +171,7 @@
                     document.querySelectorAll(".material-select").forEach(select => {
                         select.innerHTML = '<option value="">请选择物料</option>';
                         data.materials.forEach(material => {
-                            select.innerHTML += `<option value="${material.id}" data-price="${material.price}">${material.name}</option>`;
+                            select.innerHTML += `<option value="${material.id}" data-price="${material.unit_price}">${material.material_number}  ${material.name}</option>`;
                         });
                     });
                 });
@@ -180,6 +180,10 @@
         // 添加物料行
         document.getElementById("addMaterial").addEventListener("click", function () {
             const clone = materialList.querySelector(".material-item").cloneNode(true);
+
+            clone.querySelector(".unit-price").value = ''; // 清空单价
+            clone.querySelector(".quantity").value = ''; // 清空数量
+
             materialList.appendChild(clone);
         });
 
@@ -192,26 +196,26 @@
         });
 
         // 动态更新单价和总价
-        materialList.addEventListener("change", function (e) {
-            if (e.target.classList.contains("material-select")) {
-                const selectedOption = e.target.selectedOptions[0];
-                const price = selectedOption.dataset.price || 0;
-                e.target.closest(".material-item").querySelector(".unit-price").value = price;
-                calculateTotalPrice();
-            } else if (e.target.classList.contains("quantity")) {
-                calculateTotalPrice();
-            }
-        });
-
-        function calculateTotalPrice() {
-            let total = 0;
-            document.querySelectorAll(".material-item").forEach(item => {
-                const price = parseFloat(item.querySelector(".unit-price").value || 0);
-                const quantity = parseFloat(item.querySelector(".quantity").value || 0);
-                total += price * quantity;
-            });
-            totalPriceInput.value = total.toFixed(2);
+    materialList.addEventListener("change", function (e) {
+        if (e.target.classList.contains("material-select")) {
+            const selectedOption = e.target.selectedOptions[0];
+            const price = selectedOption.dataset.price || 0;
+            e.target.closest(".material-item").querySelector(".unit-price").value = price;
+            calculateTotalPrice();
+        } else if (e.target.classList.contains("quantity")) {
+            calculateTotalPrice();
         }
+    });
+
+    function calculateTotalPrice() {
+        let total = 0;
+        document.querySelectorAll(".material-item").forEach(item => {
+            const price = parseFloat(item.querySelector(".unit-price").value || 0);
+            const quantity = parseFloat(item.querySelector(".quantity").value || 0);
+            total += price * quantity;
+        });
+        totalPriceInput.value = total.toFixed(2);
+    }
 
         document.querySelectorAll('.view-order').forEach(button => {
             button.addEventListener('click', function () {
@@ -255,8 +259,8 @@
                 setModalTitle(true); // 设置为编辑标题
                 const id = this.dataset.id;
                 // 动态设置表单标题和 action URL
-        const orderForm = document.getElementById('orderForm');
-        orderForm.action = `/purchase/orders/edit/${id}/`;
+                const orderForm = document.getElementById('orderForm');
+                orderForm.action = `/purchase/orders/edit/${id}/`;
                 // 加载订单数据并填充模态框
                 fetch(`/purchase/orders/view/${id}/`)
                     .then(response => response.json())
@@ -301,6 +305,7 @@
         function initializeForm(order, suppliers, materials) {
             const supplierSelect = document.getElementById('supplierSelect');
             const materialList = document.getElementById('materialList');
+            const totalPriceInput = document.getElementById('totalPrice'); // 获取总价输入框
         
             // 填充供应商选择框
             supplierSelect.innerHTML = '<option value="">请选择供应商</option>';
@@ -311,12 +316,9 @@
                     </option>`;
             });
         
-             // 设置供应商
-            if (order) {
-                supplierSelect.value = order.supplier_id;
-            } else {
-                supplierSelect.value = '';
-            }
+            // 设置供应商
+            supplierSelect.value = order ? order.supplier_id : '';
+        
             // 初始化物料项
             materialList.innerHTML = ''; // 清空现有物料
             if (order.items.length > 0) {
@@ -326,8 +328,10 @@
             } else {
                 addMaterialRow(); // 添加一个空白物料行
             }
+            
+            // 计算总价
+            calculateTotalPrice(); // 确保在初始化后计算总价
         }
-        
         
         // 添加物料行
         function addMaterialRow(selectedMaterialId = '', unitPrice = '', quantity = '', materials = []) {
@@ -338,18 +342,18 @@
         
             const materialRow = `
                 <div class="row g-3 material-item">
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label class="form-label">物料</label>
                         <select class="form-select material-select" name="materials[]" required>
                             <option value="">请选择物料</option>
                             ${materialOptions}
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label">单价</label>
                         <input type="number" class="form-control unit-price" name="unit_prices[]" value="${unitPrice}" readonly>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label">数量</label>
                         <input type="number" class="form-control quantity" name="quantities[]" value="${quantity}" required>
                     </div>
