@@ -310,10 +310,17 @@ def material_requisition_create(request):
 
     # 循环处理每种材料和数量
     for material_id, quantity in zip(materials, quantities):
-        # 查找材料对象
-        material = Material.objects.filter(id=material_id).first()
-        # 创建与领料单关联的材料项
-        ProductionMaterial.objects.create(materialrequisition=materialrequisition, material=material, quantity=quantity)
+        # 检查 material_id 是否是以 "MAT" 开头的字符串
+        if isinstance(material_id, str) and material_id.startswith("MAT"):
+            # 根据 material_number 查找
+            material = Material.objects.filter(material_number=material_id).first()
+        else:
+            # 假设 material_id 是整数或其他类型的 id，直接按 id 查找
+            material = Material.objects.filter(id=material_id).first()
+    
+        if material:
+            # 创建与领料单关联的材料项
+            ProductionMaterial.objects.create(materialrequisition=materialrequisition, material=material, quantity=quantity)
     
     production_order = ProductionOrder.objects.filter(id=production_order_id).first()
     production_order.status = 'material_collected'

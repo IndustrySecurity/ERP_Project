@@ -20,6 +20,7 @@
         <table class="table table-bordered table-striped">
             <thead>
                 <tr>
+                    <th>配方号</th>
                     <th>配方名称</th>
                     <th>产品</th>
                     <th>描述</th>
@@ -30,6 +31,7 @@
                 {% if recipes %}
                     {% for recipe in recipes %}
                     <tr>
+                        <td>{{ recipe.recipe_number}}
                         <td>{{ recipe.product.name }} 配方</td>
                         <td>{{ recipe.product.name }}</td>
                         <td>{{ recipe.description|default:"-" }}</td>
@@ -489,7 +491,10 @@
             }
         });
 
-    });
-    
+        document.getElementById('recipeCreateModal').addEventListener('hidden.bs.modal', function () { 
+            location.reload(); 
+        }); 
+        
+    }); 
 </script>
 {% endblock %}

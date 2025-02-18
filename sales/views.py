@@ -12,6 +12,7 @@ import re
 from decimal import Decimal
 from django.db.models import Sum
 from django.utils.timezone import localtime
+from django.db import transaction
 
 logger = logging.getLogger(__name__)
 
@@ -190,7 +191,8 @@ def order_edit(request, order_id):
 
 def delivery_list(request):
     deliveries = SalesDelivery.objects.select_related('order', 'location', 'created_by', 'updated_by').all()
-    orders = SalesOrder.objects.filter(status='pending')
+    # 筛选状态为 'pending' 或 'partial' 的订单
+    orders = SalesOrder.objects.filter(status__in=['pending', 'partial'])
     locations = WarehouseLocation.objects.all()
 
     paginator = Paginator(deliveries, 10)
@@ -208,47 +210,71 @@ def delivery_list(request):
 @csrf_exempt
 def delivery_create(request):
     if request.method == 'POST':
-        order_id = request.POST.get('order')
-        location_id = request.POST.get('location')
-        remarks = request.POST.get('remarks', '')
+        try:
+            with transaction.atomic():
+                order_id = request.POST.get('order')
+                location_id = request.POST.get('location')
+                remarks = request.POST.get('remarks', '')
 
-        order = get_object_or_404(SalesOrder, pk=order_id)
-        location = get_object_or_404(WarehouseLocation, pk=location_id)
+                order = get_object_or_404(SalesOrder, pk=order_id)
+                location = get_object_or_404(WarehouseLocation, pk=location_id)
 
-        # 创建出库单
-        delivery = SalesDelivery.objects.create(order=order, location=location, remarks=remarks)
+                # 创建出库单
+                delivery = SalesDelivery.objects.create(order=order, location=location, remarks=remarks)
 
-        # 更新库存并记录出库项
-        items = request.POST.dict()
-        total_outgoing = 0
-        total_order = 0
+                # 更新库存并记录出库项
+                items = request.POST.dict()
 
-        for key, value in items.items():
-            if key.startswith('items') and '[quantity]' in key:
-                product_id = int(key.split('[')[1].split(']')[0])
-                quantity = Decimal(value)
+                # 计算已有的出库数量
+                total_outgoing = sum(item['quantity'] for item in SalesDeliveryItem.objects.filter(delivery__order=order).values('quantity'))
 
-                stock = ProductStock.objects.get(location=location, product_id=product_id)
-                stock.quantity -= quantity
-                stock.save()
+                total_order = 0
+                print(items)
+                for key, value in items.items():
+                    if key.startswith('items') and '[quantity]' in key:
+                        product_id = int(key.split('[')[1].split(']')[0])
+                        quantity = Decimal(value)
+                        
+                        # 获取订单项和计算总订单数量
+                        order_item = SalesOrderItem.objects.get(order=order, product_id=product_id)
+                        total_order += order_item.quantity
+                        
+                        # 检查库存
+                        try:
+                            stock = ProductStock.objects.get(location=location, product_id=product_id)
+                            if stock.quantity < quantity:
+                                return JsonResponse({'success': False, 'message': f'库存不足，产品ID {product_id}'})
+                        except ProductStock.DoesNotExist:
+                            return JsonResponse({'success': False, 'message': f'库存记录未找到，产品ID {product_id}'})
 
-                SalesDeliveryItem.objects.create(
-                    delivery=delivery,
-                    product_id=product_id,
-                    quantity=quantity
-                )
+                        # 减少库存并保存
+                        stock.quantity -= quantity
+                        stock.save()
 
-                total_outgoing += quantity
-                total_order += SalesOrderItem.objects.get(order=order, product_id=product_id).quantity
+                        # 创建出库记录
+                        SalesDeliveryItem.objects.create(
+                            delivery=delivery,
+                            product_id=product_id,
+                            quantity=quantity
+                        )
 
-        # 更新销售订单状态
-        if total_outgoing >= total_order:
-            order.status = 'shipped'  # 全部出库
-        else:
-            order.status = 'partial'  # 部分出库
-        order.save()
+                        total_outgoing += quantity
 
-        return JsonResponse({'success': True, 'message': '出库创建成功'})
+                # 更新销售订单状态
+                if total_outgoing >= total_order:
+                    order.status = 'shipped'  # 全部出库
+                else:
+                    order.status = 'partial'  # 部分出库
+                order.save()
+                if total_outgoing > total_order:
+                    return JsonResponse({'success': True, 'message': '出库创建成功!注意总出库产品数量大于订单项！！'})
+                else:
+                    return JsonResponse({'success': True, 'message': '出库创建成功'})
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)})
+
+    return JsonResponse({'success': False, 'message': '仅支持POST请求'})
 
 
 
@@ -267,7 +293,27 @@ def get_order_items(request, order_id):
     """获取销售订单的产品信息"""
     order = get_object_or_404(SalesOrder, pk=order_id)
     items = order.salesorderitem_set.select_related('product').all()
-    results = [{'product_id': item.product.id, 'product_name': item.product.name, 'quantity': item.quantity} for item in items]
+    
+    results = []
+
+    # 遍历订单项并填充结果
+    for item in items:
+        # 获取产品ID和产品名称
+        product_id = item.product.id
+        product_name = item.product.name
+        quantity = item.quantity
+        
+        # 计算该产品的已出库数量
+        outgoing_items = SalesDeliveryItem.objects.filter(delivery__order=order, product_id=product_id).aggregate(total=Sum('quantity'))
+        outgoing_quantity = outgoing_items['total'] if outgoing_items['total'] else 0  # 若没有出库，则为0
+
+        results.append({
+            'product_id': product_id,
+            'product_name': product_name,
+            'quantity': quantity,
+            'outgoing_quantity': outgoing_quantity  # 添加已出库数量
+        })
+
     return JsonResponse({'results': results})
 
 

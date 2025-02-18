@@ -19,13 +19,10 @@
                 <th>出库单编号</th>
                 <th>订单编号</th>
                 <th>仓库位置</th>
-                <th>出库日期</th>
+                <th>出库时间</th>
                 <th>备注</th>
                 <th>出库项</th>
                 <th>创建人</th>
-                <th>创建时间</th>
-                <th>更新人</th>
-                <th>更新时间</th>
             </tr>
         </thead>
         <tbody id="deliveryTableBody">
@@ -34,7 +31,7 @@
                 <td>{{ delivery.delivery_number }}</td>
                 <td>{{ delivery.order.order_number }}</td>
                 <td>{{ delivery.location.name }}</td>
-                <td>{{ delivery.date }}</td>
+                <td>{{ delivery.created_at }}</td>
                 <td>{{ delivery.remarks|default:"无" }}</td>
                 <td>
                     <ul>
@@ -44,9 +41,6 @@
                     </ul>
                 </td>
                 <td>{{ delivery.created_by.username }}</td>
-                <td>{{ delivery.created_at }}</td>
-                <td>{{ delivery.updated_by.username }}</td>
-                <td>{{ delivery.updated_at }}</td>
             </tr>
             {% empty %}
             <tr>
@@ -56,6 +50,7 @@
         </tbody>
     </table>
 
+    
     <nav>
         <ul class="pagination">
             {% if page_obj.has_previous %}
@@ -103,22 +98,23 @@
                                 {% endfor %}
                             </select>
                         </div>
-             <!-- 动态加载订单项表格 -->
-<div id="orderItems" class="mt-3">
-    <table class="table table-bordered table-striped">
-        <thead>
-            <tr>
-                <th>产品名称</th>
-                <th>订单数量</th>
-                <th id="stockHeader" style="display: none;">可用库存</th>
-                <th>出库数量</th>
-            </tr>
-        </thead>
-        <tbody id="orderItemsTableBody">
-            <!-- 动态填充 -->
-        </tbody>
-    </table>
-</div>
+                        <!-- 动态加载订单项表格 -->
+                        <div id="orderItems" class="mt-3">
+                            <table class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>产品名称</th>
+                                        <th>订单数量</th>
+                                        <th>已出库数量</th>
+                                        <th id="stockHeader" style="display: none;">可用库存</th>
+                                        <th>出库数量</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="orderItemsTableBody">
+                                    <!-- 动态填充 -->
+                                </tbody>
+                            </table>
+                        </div>
 
                         <div class="col-md-12">
                             <label for="deliveryRemarks" class="form-label">备注</label>
@@ -155,22 +151,25 @@
         orderDropdown.addEventListener('change', function () {
             const orderId = this.value;
             tableBody.innerHTML = ''; // 清空表格内容
-
+            stockHeader.style.display = 'none'; // 隐藏表头库存列
+            locationDropdown.value = '';  // 清空选择
             if (!orderId) return;
 
             fetch(`/sales/orders/${orderId}/items/`)
                 .then(response => response.json())
                 .then(data => {
                     data.results.forEach(item => {
+                        const availableQuantity = item.quantity - item.outgoing_quantity; // 计算可用的出库数量
                         const row = `
                             <tr data-product-id="${item.product_id}">
                                 <td>${item.product_name}</td>
                                 <td>${item.quantity}</td>
+                                <td>${item.outgoing_quantity}</td>
                                 <td class="stock-info" style="display: none;">--</td>
                                 <td>
                                     <input type="number" class="form-control" 
-                                           name="items[${item.product_id}][quantity]" 
-                                           placeholder="出库数量" max="${item.quantity}" required>
+                                        name="items[${item.product_id}][quantity]" 
+                                        placeholder="出库数量" max="${availableQuantity}" required>
                                 </td>
                             </tr>
                         `;
