@@ -109,15 +109,19 @@
 
 <!-- 选择材料模态框 -->
 <div class="modal fade" id="materialSelectModal" tabindex="-1" aria-labelledby="materialSelectModalLabel" aria-hidden="true">
-    <div class="modal-dialog" style="max-width: 90%; width: auto;">  <!-- 设置最大宽度 -->
+    <div class="modal-dialog" style="max-width: 90%; width: auto;">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="materialSelectModalLabel">编辑材料</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="materialSelectForm">
+                <form id="materialSelectForm" onsubmit="event.preventDefault(); fetchMaterials(1);">
                     {% csrf_token %}
+                    <div class="input-group mb-3">
+                        <input type="text" id="searchMaterial" class="form-control" name="material_q" class="form-control" placeholder="搜索材料名称,材料编号或供应商">
+                        <button type="submit" class="btn btn-primary">搜索</button>
+                    </div>
                     <table class="table table-bordered">
                         <thead>
                             <tr>
@@ -132,33 +136,17 @@
                                 <th>客供/非客供</th>
                                 <th>工艺技术</th>
                                 <th>备注</th>
-                                <th>数量</th>  <!-- 新增数量列 -->
+                                <th>数量</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            {% for material in materials %}
-                            <tr>
-                                <td>
-                                    <input class="form-check-input" type="checkbox" value="{{ material.id }}" id="material{{ material.id }}" data-material-id="{{ material.id }}" name="{{material.name}}">
-                                </td>
-                                <td>{{ material.material_number }}</td>
-                                <td>{{ material.name }}</td>
-                                <td>{{ material.category.name }}</td>
-                                <td>{{ material.supplier.name }}</td>
-                                <td>{{ material.unit_price }}</td>
-                                <td>{{ material.capacity }}</td>
-                                <td>{{ material.color }}</td>
-                                <td>{{ material.customer_supply }}</td>
-                                <td>{{ material.technology }}</td>
-                                <td>{{ material.remark }}</td>
-                                <td>
-                                    <input type="number" name="quantities" class="form-control quantity-input" id="quantity{{ material.id }}" value="0" disabled>
-                                </td>
-                            </tr>
-                            {% endfor %}
+                        <tbody id="materialTableBody">
+                            <!-- 材料数据将通过 JavaScript 填充 -->
                         </tbody>
                     </table>
                 </form>
+                <div id="materialPaginationNav" aria-label="Material Page navigation">
+                    <!-- 分页导航将通过 JavaScript 填充 -->
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
@@ -170,16 +158,20 @@
 
 <!-- 产品选择模态框 -->
 <div class="modal fade" id="productSelectModal" tabindex="-1" aria-labelledby="productSelectModalLabel" aria-hidden="true">
-    <div class="modal-dialog" style="max-width: 90%; width: auto;">  <!-- 设置最大宽度 -->
+    <div class="modal-dialog" style="max-width: 90%; width: auto;">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="productSelectModalLabel">选择产品</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="productSelectForm">
+                <form id="productSelectForm" onsubmit="event.preventDefault(); fetchProducts(1);">
                     {% csrf_token %}
-                    <table class="table table-bordered">
+                    <div class="input-group mb-3">
+                        <input type="text" id="searchProduct" name="product_q" class="form-control" placeholder="搜索产品名称或产品编号">
+                        <button type="submit" class="btn btn-primary">搜索</button>
+                    </div>
+                    <table class="table table-bordered" id="productTable">
                         <thead>
                             <tr>
                                 <th>选择</th>
@@ -194,26 +186,14 @@
                                 <th>备注</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            {% for product in products %}
-                            <tr>
-                                <td>
-                                    <input class="form-check-input" type="radio" name="selectedProduct" value="{{ product.name }}" id="product{{ product.id }}">
-                                </td>
-                                <td>{{ product.product_code }}</td>
-                                <td>{{ product.name }}</td>
-                                <td>{{ product.category.name }}</td>
-                                <td>{{ product.unit_price }}</td>
-                                <td>{{ product.material }}</td>
-                                <td>{{ product.capacity }}</td>
-                                <td>{{ product.color }}</td>
-                                <td>{{ product.technology }}</td>
-                                <td>{{ product.remark }}</td>
-                            </tr>
-                            {% endfor %}
+                        <tbody id="productTableBody">
+                            <!-- 产品数据将通过 JavaScript 填充 -->
                         </tbody>
                     </table>
                 </form>
+            </div>
+            <div id="paginationNav" aria-label="Product Page navigation">
+                <!-- 分页导航将通过 JavaScript 填充 -->
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
@@ -223,9 +203,235 @@
     </div>
 </div>
 
-
 <script>
-   
+    let selectedProductID = null;  // 存储已选产品 ID
+    let selectedMaterialIDs = [];   // 存储已选材料 ID
+    function fetchProducts(pageNumber) {
+        const query = document.getElementById('searchProduct').value;
+        const apiUrl = `/master_data/products/api/?product_page=${pageNumber}&product_q=${encodeURIComponent(query)}`;
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                // 更新产品表格
+                const productTableBody = document.getElementById('productTableBody');
+                productTableBody.innerHTML = '';
+
+                data.products.forEach(product => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>
+                            <input class="form-check-input" type="radio" name="selectedProduct" value="${product.name}" id="product${product.id}" ${selectedProductID==product.id ? 'checked' : ''}>
+                        </td>
+                        <td>${product.product_code}</td>
+                        <td>${product.name}</td>
+                        <td>${product.category}</td>
+                        <td>${product.unit_price}</td>
+                        <td>${product.material}</td>
+                        <td>${product.capacity}</td>
+                        <td>${product.color}</td>
+                        <td>${product.technology}</td>
+                        <td>${product.remark}</td>
+                    `;
+                    productTableBody.appendChild(row);
+                });
+
+                // 更新分页导航
+                const paginationNav = document.getElementById('paginationNav');
+                paginationNav.innerHTML = '';
+                const paginationList = document.createElement('ul');
+                paginationList.className = 'pagination justify-content-center';
+
+                // 上一页
+                if (data.has_previous) {
+                    const prevPage = document.createElement('li');
+                    prevPage.className = 'page-item';
+                    prevPage.innerHTML = `<a class="page-link" href="#" onclick="fetchProducts(${data.number - 1}); return false;">上一页</a>`;
+                    paginationList.appendChild(prevPage);
+                }
+
+                // 页码
+                for (let i = 1; i <= data.total_pages; i++) {
+                    const pageItem = document.createElement('li');
+                    pageItem.className = `page-item ${data.number === i ? 'active' : ''}`;
+                    pageItem.innerHTML = `<a class="page-link" href="#" onclick="fetchProducts(${i}); return false;">${i}</a>`;
+                    paginationList.appendChild(pageItem);
+                }
+
+                // 下一页
+                if (data.has_next) {
+                    const nextPage = document.createElement('li');
+                    nextPage.className = 'page-item';
+                    nextPage.innerHTML = `<a class="page-link" href="#" onclick="fetchProducts(${data.number + 1}); return false;">下一页</a>`;
+                    paginationList.appendChild(nextPage);
+                }
+
+                paginationNav.innerHTML = ''; // 清空之前的内容
+                paginationNav.appendChild(paginationList); // 添加新的分页
+            })
+            .catch(error => {
+                console.error('Error fetching products:', error);
+                alert('加载失败，请重试。');
+            });
+    }     
+
+    // 加载材料数据的函数
+    function fetchMaterials(pageNumber) {
+        const query = document.getElementById('searchMaterial').value;
+        const apiUrl = `/master_data/materials/api/?material_page=${pageNumber}&material_q=${encodeURIComponent(query)}`;
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                const materialTableBody = document.getElementById('materialTableBody');
+                materialTableBody.innerHTML = '';
+
+                data.materials.forEach(material => {
+                    const row = document.createElement('tr');
+                    // 使用 some 方法检查材料是否在选中的列表中
+                    const selectedMaterial = selectedMaterialIDs.find(item => item.id == material.id);
+                    const isChecked = selectedMaterial !== undefined; // 判断材料是否已选中
+
+                    // 根据是否选中来设置数量值
+                    const quantityValue = isChecked ? selectedMaterial.quantity : 0;
+
+                    row.innerHTML = `
+                    <td>
+                        <input class="form-check-input" type="checkbox" name="${material.name}" value="${material.id}" data-material-id="${material.id}" id="material${material.id}" ${isChecked ? 'checked' : ''}>
+                    </td>
+                    <td>${material.material_number}</td>
+                    <td>${material.name}</td>
+                    <td>${material.category}</td>
+                    <td>${material.supplier}</td>
+                    <td>${material.unit_price}</td>
+                    <td>${material.capacity}</td>
+                    <td>${material.color}</td>
+                    <td>${material.customer_supply}</td>
+                    <td>${material.technology}</td>
+                    <td>${material.remark}</td>
+                    <td>
+                        <input type="number" class="form-control quantity-input" id="quantity${material.id}" value="${quantityValue}" min="1" ${isChecked ? '' : 'disabled'}>
+                    </td>
+                `;
+                    materialTableBody.appendChild(row);
+                });
+
+                // 更新分页导航
+                const paginationNav = document.getElementById('materialPaginationNav');
+                paginationNav.innerHTML = '';
+                const paginationList = document.createElement('ul');
+                paginationList.className = 'pagination justify-content-center';
+
+                if (data.has_previous) {
+                    const prevPage = document.createElement('li');
+                    prevPage.className = 'page-item';
+                    prevPage.innerHTML = `<a class="page-link" href="#" onclick="fetchMaterials(${data.number - 1}); return false;">上一页</a>`;
+                    paginationList.appendChild(prevPage);
+                }
+
+                for (let i = 1; i <= data.total_pages; i++) {
+                    const pageItem = document.createElement('li');
+                    pageItem.className = `page-item ${data.number === i ? 'active' : ''}`;
+                    pageItem.innerHTML = `<a class="page-link" href="#" onclick="fetchMaterials(${i}); return false;">${i}</a>`;
+                    paginationList.appendChild(pageItem);
+                }
+
+                if (data.has_next) {
+                    const nextPage = document.createElement('li');
+                    nextPage.className = 'page-item';
+                    nextPage.innerHTML = `<a class="page-link" href="#" onclick="fetchMaterials(${data.number + 1}); return false;">下一页</a>`;
+                    paginationList.appendChild(nextPage);
+                }
+                
+                paginationNav.appendChild(paginationList); // 添加分页
+                
+                // 添加复选框的事件监听
+                document.querySelectorAll('#materialTableBody input[type="checkbox"]').forEach(checkbox => {
+                    checkbox.addEventListener('change', function () {
+                        const quantityInput = document.getElementById('quantity' + this.dataset.materialId);
+                        const materialName = this.name;
+                        const materialId = this.value;
+
+                        // 如果复选框选中
+                        if (this.checked) {
+                            // 启用数量输入框
+                            quantityInput.disabled = false;
+                            quantityInput.value = 1; // 默认1
+                            // 添加到选中的材料
+                            selectedMaterialIDs.push({ id: materialId, quantity: quantityInput.value });
+
+                            // 创建新行展示已选中的材料和数量输入框
+                            const materialRow = document.createElement('div');
+                            materialRow.className = 'row g-3';
+                            materialRow.id = 'selectedMaterialRow' + materialId; // 唯一标识
+
+                            materialRow.innerHTML = `                   
+                                <div class="col-md-6">
+                                    <label class="form-label">材料名称</label>
+                                    <input type="text" class="form-control" value="${materialName}" disabled>
+                                    <input type="hidden" name="materials" value="${materialId}"> <!-- 隐藏材料ID -->
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">数量</label>
+                                    <input type="number" step="1" name="quantities" class="form-control" value="${quantityInput.value}" disabled>
+                                </div>`;
+                            selectedMaterialsList.appendChild(materialRow);
+                        } else {
+                            // 禁用数量输入框并清零
+                            quantityInput.value = 0; // 设置为0
+                            quantityInput.disabled = true;
+                            // 从选中的材料中移除
+                            selectedMaterialIDs = selectedMaterialIDs.filter(item => item.id !== materialId);
+                            // 移除对应的材料行
+                            const selectedRow = document.getElementById('selectedMaterialRow' + materialId);
+                            if (selectedRow) {
+                                selectedMaterialsList.removeChild(selectedRow);
+                            }
+                        }
+
+                        // 更新数量输入框的事件监听
+                        quantityInput.addEventListener('input', function () {
+                            if (checkbox.checked) {
+                                // 更新数量
+                                const selectedItem = selectedMaterialIDs.find(item => item.id === materialId);
+                                if (selectedItem) {
+                                    selectedItem.quantity = this.value; // 更新数量
+                                }
+                                // 更新数量，保持对应的数量显示
+                                const selectedRow = document.getElementById('selectedMaterialRow' + materialId);
+                                if (selectedRow) {
+                                    const quantityDisplay = selectedRow.querySelector('input[name="quantities"]');
+                                    quantityDisplay.value = this.value; // 更新对应的数量
+                                }
+                            }
+                        });
+
+                        
+                    });
+
+                    // 单独监听数量输入框的变化，确保该输入框在其他地方也能正常工作
+                    const quantityInput = document.getElementById('quantity' + checkbox.dataset.materialId);
+                    quantityInput.addEventListener('input', function () {
+                        if (checkbox.checked) {
+                            const selectedRow = document.getElementById('selectedMaterialRow' + checkbox.value);
+                            if (selectedRow) {
+                                const quantityDisplay = selectedRow.querySelector('input[name="quantities"]');
+                                quantityDisplay.value = this.value; // 更新对应的数量
+                                // 更新数量
+                                const selectedItem = selectedMaterialIDs.find(item => item.id == checkbox.dataset.materialId);
+                                if (selectedItem) {
+                                    selectedItem.quantity = this.value; // 更新数量
+                                }
+                            }
+                        }
+                    });
+                    
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching materials:', error);
+                alert('加载失败，请重试。');
+            });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         // 提交表单
         document.getElementById('recipeCreateForm').addEventListener('submit', function (e) {
@@ -244,8 +450,7 @@
                 materials.push(materialId);
                 quantities.push(quantity);
             });
-            const selectedProductId = document.querySelector('input[name="selectedProduct"]:checked');
-            const product = selectedProductId.id.substring("product".length);
+            const product = selectedProductID;
 
             // 将获取的材料和数量添加到 FormData
             materials.forEach(material => {
@@ -289,16 +494,20 @@
                         // 填充表单字段
                         document.getElementById('id_description').value = data.recipe.description;
 
-                        const selectedProductId = data.recipe.product_id; // 获取产品 ID
-                        // 选中对应产品的单选框
-                        const productRadio = document.querySelector(`input[name="selectedProduct"][id="product${selectedProductId}"]`);
-                        if (productRadio) {
-                            productRadio.checked = true; // 设置为选中状态
-                        }
+                        selectedProductID = data.recipe.product_id; // 获取产品 ID
+
                         const selectedProductElement = document.getElementById('selectedProduct');
-                        selectedProductElement.textContent = '产品名称: ' + productRadio.value;
+                        selectedProductElement.textContent = '产品名称: ' + data.recipe.product_name;
                         selectedProductElement.style.fontSize = '24px'; // 调整字体大小
                         selectedProductElement.style.fontWeight = 'bold'; // 可选：加粗
+
+                        // 根据后端返回的材料填充 selectedMaterialIDs
+                        selectedMaterialIDs = data.recipe.materials.map(material => {
+                            return {
+                                id: material.material__id,
+                                quantity: material.quantity
+                            };
+                        });
 
                         // 预选材料复选框
                         const materialsCheckboxes = document.querySelectorAll('#materialSelectModal input[type="checkbox"]');
@@ -384,11 +593,13 @@
         });
 
         document.getElementById('selectMaterialButton').addEventListener('click', function () {
+            fetchMaterials(1);
             new bootstrap.Modal(document.getElementById('materialSelectModal')).show();
         });
 
         // 监听复选框的变更事件
         const checkboxes = document.querySelectorAll('#materialSelectModal [type="checkbox"]');
+
         const selectedMaterialsList = document.getElementById('selectedMaterialsList');
         checkboxes.forEach(checkbox => {
             checkbox.addEventListener('change', function () {
@@ -469,6 +680,7 @@
         });
 
         document.getElementById('selectProductBotton').addEventListener('click', function () {
+            fetchProducts(1);
             new bootstrap.Modal(document.getElementById('productSelectModal')).show();
         });
         // 处理确认选择按钮的点击事件
@@ -476,6 +688,7 @@
         confirmButton.addEventListener('click', function () {
             const selectedProductId = document.querySelector('input[name="selectedProduct"]:checked');
             if (selectedProductId) {
+                selectedProductID = selectedProductId.id.substring("product".length);
                 // 获取选中的产品名称
                 const selectedProductName = selectedProductId.value;
                 // 显示选中的产品名称
@@ -495,6 +708,11 @@
             location.reload(); 
         }); 
         
-    }); 
+
+       
+
+    });
+    
+
 </script>
 {% endblock %}

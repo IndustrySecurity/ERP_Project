@@ -375,7 +375,6 @@ def recipe_list(request):
     page_obj = paginator.get_page(page_number)
 
     # 初始化产品和材料数据
-    products = Product.objects.all()  # 获取所有产品
     materials = Material.objects.all()  # 获取所有材料
 
     context = {
@@ -383,10 +382,88 @@ def recipe_list(request):
         'page_obj': page_obj,
         'paginator': paginator,
         'query': query,
-        'products': products,  # 将产品数据传递给模板
-        'materials': materials,  # 将材料数据传递给模板
     }
     return render(request, 'master_data/recipe_list.html', context)
+
+def product_list_api(request):
+    """产品列表 API 视图，实现产品的搜索与分页"""
+    product_query = request.GET.get('product_q', '').strip()
+
+    products = Product.objects.all()
+    if product_query:
+        products = products.filter(Q(name__icontains=product_query) | Q(product_code__icontains=product_query)).distinct()
+
+    product_paginator = Paginator(products, 10)  # 每页显示 10 条记录
+    product_page_number = request.GET.get('product_page', 1)
+
+    product_page_obj = product_paginator.get_page(product_page_number)
+
+    # 构建返回数据
+    product_data = [{
+        'id': product.id,
+        'product_code': product.product_code,
+        'name': product.name,
+        'category': product.category.name,
+        'unit_price': product.unit_price,
+        'material': product.material,
+        'capacity': product.capacity,
+        'color': product.color,
+        'technology': product.technology,
+        'remark': product.remark,
+    } for product in product_page_obj]
+
+    response_data = {
+        'products': product_data,
+        'has_previous': product_page_obj.has_previous(),
+        'has_next': product_page_obj.has_next(),
+        'number': product_page_obj.number,
+        'total_pages': product_paginator.num_pages,
+    }
+
+    return JsonResponse(response_data)
+
+def material_list_api(request):
+    """材料列表 API 视图，实现材料的搜索与分页"""
+    material_query = request.GET.get('material_q', '').strip()
+
+    materials = Material.objects.all()
+    if material_query:
+        # 通过名称、料号、类别、供应商进行过滤
+        materials = materials.filter(
+            Q(name__icontains=material_query) |
+            Q(material_number__icontains=material_query) |
+            Q(supplier__name__icontains=material_query)
+        ).distinct()
+
+    material_paginator = Paginator(materials, 10)  # 每页显示 10 条记录
+    material_page_number = request.GET.get('material_page', 1)
+
+    material_page_obj = material_paginator.get_page(material_page_number)
+
+    # 构建返回数据
+    material_data = [{
+        'id': material.id,
+        'material_number': material.material_number,
+        'name': material.name,
+        'category': material.category.name if material.category else None,
+        'supplier': material.supplier.name if material.supplier else None,
+        'unit_price': material.unit_price,  
+        'capacity': material.capacity,
+        'color': material.color,
+        'customer_supply': material.customer_supply,
+        'technology': material.technology,
+        'remark': material.remark,
+    } for material in material_page_obj]
+
+    response_data = {
+        'materials': material_data,
+        'has_previous': material_page_obj.has_previous(),
+        'has_next': material_page_obj.has_next(),
+        'number': material_page_obj.number,
+        'total_pages': material_paginator.num_pages,
+    }
+
+    return JsonResponse(response_data)
 
 def recipe_create(request):
     """创建配方视图"""
@@ -431,7 +508,8 @@ def recipe_update(request, pk):
             'recipe': {
                 'description': recipe.description or "",
                 'materials': list(materials),  # 材料列表
-                'product_id': recipe.product.id  # 产品ID
+                'product_id': recipe.product.id,  # 产品ID
+                'product_name': recipe.product.name,
             }
         })
 

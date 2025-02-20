@@ -23,6 +23,8 @@ urlpatterns = [
     path('recipes/create/', views.recipe_create, name='recipe_create'),
     path('recipes/update/<int:pk>/', views.recipe_update, name='recipe_update'),
     path('recipes/delete/<int:pk>/', views.recipe_delete, name='recipe_delete'),
+    path('products/api/', views.product_list_api, name='product_list_api'),
+    path('materials/api/', views.material_list_api, name='material_list_api'),
 
     # 供应商
     path('suppliers/', views.supplier_list, name='supplier_list'),

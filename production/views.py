@@ -251,19 +251,19 @@ def get_materials(request,pk):
                 if recipe:
                     recipematerials = RecipeMaterial.objects.filter(recipe=recipe)
                     
-                    for material in recipematerials:  # 获取配方中的每种材料
-                        material_id = material.material.id
-                        material_name = material.material.name
-                        material_quantity = material.quantity * item.quantity  # 根据销售订单项的数量计算所需的总数量
+                    for materialitem in recipematerials:  # 获取配方中的每种材料
+                        material_id = materialitem.material.id
+                        material_name = materialitem.material.name
+                        material_quantity = materialitem.quantity * item.quantity  # 根据销售订单项的数量计算所需的总数量
                         # 获取原材料仓库的库存
-                        raw_material_stock = MaterialStock.objects.filter(material=material.material, location=row_material_warehouse_location).first()
+                        raw_material_stock = MaterialStock.objects.filter(material=materialitem.material, location=row_material_warehouse_location).first()
                         if raw_material_stock is None:
                             raw_material_quantity = 0
                         else:
                             raw_material_quantity = raw_material_stock.quantity
 
                         # 获取产线仓库的库存
-                        production_line_stock = MaterialStock.objects.filter(material=material.material, location=production_line_warehouse_location).first()
+                        production_line_stock = MaterialStock.objects.filter(material=materialitem.material, location=production_line_warehouse_location).first()
                         if production_line_stock is None:
                             production_line_quantity = 0
                         else:
@@ -315,7 +315,7 @@ def material_requisition_create(request):
             # 根据 material_number 查找
             material = Material.objects.filter(material_number=material_id).first()
         else:
-            # 假设 material_id 是整数或其他类型的 id，直接按 id 查找
+            # 直接按 id 查找
             material = Material.objects.filter(id=material_id).first()
     
         if material:
@@ -347,7 +347,7 @@ def view_requisition(request, pk):
                     'username': requisition.responsible_person.username,
                 },
                 'productionmaterial_set': [],
-                'created_at': ProductionMaterial.objects.filter(materialrequisition=requisition).first().created_at,
+                'created_at': ProductionMaterial.objects.filter(materialrequisition=requisition).first().created_at if ProductionMaterial.objects.filter(materialrequisition=requisition).first() else "--",
                 'remarks': requisition.production_order.remarks,
             }
         }
