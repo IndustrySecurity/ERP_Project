@@ -6,7 +6,10 @@
 
     <!-- 检索框 -->
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <input type="text" id="searchReceipt" class="form-control w-50" placeholder="搜索收款记录">
+        <form class="d-flex" method="get" action="">
+            <input type="text" id="searchReceipt" name="q" value="{{ query }}" style="width: 600px;" class="form-control me-2" placeholder="搜索收款记录编号或销售订单编号">
+            <button type="submit" class="btn btn-primary">搜索</button>
+        </form>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#receiptModal" id="createReceiptButton">
             <i class="fas fa-plus"></i> 创建收款记录
         </button>
@@ -168,15 +171,6 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        document.getElementById("searchReceipt").addEventListener("input", function () {
-            const query = this.value.toLowerCase(); // 获取搜索框内容并转为小写
-            document.querySelectorAll("#receiptTableBody tr").forEach(row => {
-                // 检查行中的文本内容是否包含查询字符串
-                row.style.display = Array.from(row.cells).some(cell => 
-                    cell.textContent.toLowerCase().includes(query)
-                ) ? "" : "none"; // 如果行中的任意单元格匹配，则显示，否则隐藏
-            });
-        });
 
         const salesOrderSelect = document.getElementById("salesOrderSelect");
 

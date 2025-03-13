@@ -6,7 +6,10 @@
 
     <!-- 检索框 -->
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <input type="text" id="searchPayment" class="form-control w-50" placeholder="搜索付款记录">
+        <form class="d-flex" method="get" action="">
+            <input type="text" id="searchPayment" name="q" value="{{ query }}" style="width: 600px;" class="form-control me-2" placeholder="搜索付款记录编号或采购单编号">
+            <button type="submit" class="btn btn-primary">搜索</button>
+        </form>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#paymentModal" id="createPaymentButton">
             <i class="fas fa-plus"></i> 创建付款记录
         </button>
@@ -168,16 +171,6 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        document.getElementById("searchPayment").addEventListener("input", function () {
-            const query = this.value.toLowerCase(); // 获取搜索框内容并转为小写
-            document.querySelectorAll("#paymentTableBody tr").forEach(row => {
-                // 检查行中的文本内容是否包含查询字符串
-                row.style.display = Array.from(row.cells).some(cell => 
-                    cell.textContent.toLowerCase().includes(query)
-                ) ? "" : "none"; // 如果行中的任意单元格匹配，则显示，否则隐藏
-            });
-        });
-
         const purchaseOrderSelect = document.getElementById("purchaseOrderSelect");
 
         // 动态加载采购订单列表

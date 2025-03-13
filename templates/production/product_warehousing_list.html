@@ -6,7 +6,10 @@
 
     <!-- 检索和创建按钮 -->
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <input type="text" id="searchReceipt" class="form-control w-50" placeholder="搜索入库单编号、工单或备注">
+        <form class="d-flex" method="get" action="">
+            <input type="text" id="searchReceipt" name="q" value="{{ query }}" style="width: 600px;" class="form-control me-2" placeholder="搜索入库单编号、工单或备注">
+            <button type="submit" class="btn btn-primary">搜索</button>
+        </form>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#receiptModal">
             <i class="fas fa-box"></i> 创建入库单
         </button>
@@ -151,13 +154,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // 搜索功能
-        document.getElementById('searchReceipt').addEventListener('input', function () {
-            const query = this.value.toLowerCase();
-            document.querySelectorAll('#receiptTableBody tr').forEach(row => {
-                row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
-            });
-        });
 
         // 动态加载工单项
         document.getElementById('productionOrder').addEventListener('change', function () {

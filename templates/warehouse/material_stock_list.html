@@ -6,7 +6,10 @@
 <div class="container mt-4">
     <h2>原材料仓管理</h2>
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <input type="text" id="searchMaterialStock" class="form-control w-50" placeholder="搜索原材料或仓库位置">
+        <form class="d-flex" method="get" action="">
+            <input type="text" id="searchMaterialStock" name="q" value="{{ query }}" class="form-control me-2" placeholder="搜索原材料或仓库位置">
+            <button type="submit" class="btn btn-primary">搜索</button>
+        </form>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createMaterialStockModal">
             <i class="fas fa-plus"></i> 添加库存
         </button>
@@ -120,20 +123,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // 搜索功能
-        document.getElementById('searchMaterialStock').addEventListener('input', function () {
-            const query = this.value.toLowerCase();
-            const rows = document.querySelectorAll('#materialStockTableBody tr');
-            rows.forEach(row => {
-                const material = row.children[0].textContent.toLowerCase();
-                const location = row.children[1].textContent.toLowerCase();
-                if (material.includes(query) || location.includes(query)) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-        });
 
         // 添加库存
         document.getElementById('createMaterialStockForm').addEventListener('submit', function (e) {

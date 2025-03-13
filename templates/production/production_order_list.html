@@ -6,7 +6,10 @@
 
     <!-- 检索框 -->
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <input type="text" id="searchOrder" class="form-control w-50" placeholder="搜索工单编号或销售订单编号或者按产线名称查询">
+        <form class="d-flex" method="get" action="">
+            <input type="text" id="searchOrder" name="q" value="{{ query }}" style="width: 600px;" class="form-control me-2 "  placeholder="搜索工单编号或销售订单编号">
+            <button type="submit" class="btn btn-primary">搜索</button>
+        </form>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#orderModal" id="createOrderButton">
             <i class="fas fa-receipt"></i> 创建工单
         </button>
@@ -234,13 +237,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        //查找
-        document.getElementById("searchOrder").addEventListener("input", function () {
-            const query = this.value.toLowerCase();
-            document.querySelectorAll("#orderTableBody tr").forEach(row => {
-                row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
-            });
-        });
 
         // 动态加载工单项
         document.getElementById('salesOrderSelect').addEventListener('change', function () {

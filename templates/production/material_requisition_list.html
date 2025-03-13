@@ -6,7 +6,10 @@
 
     <!-- 检索框 -->
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <input type="text" id="searchRequisition" class="form-control w-50" placeholder="搜索工单编号">
+        <form class="d-flex" method="get" action="">
+            <input type="text" id="searchRequisition" name="q" value="{{ query }}" style="width: 600px;" class="form-control me-2" placeholder="搜索领料单编号或工单编号">
+            <button type="submit" class="btn btn-primary">搜索</button>
+        </form>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#requisitionModal" id="createRequisitionButton">
             <i class="fas fa-receipt"></i> 创建领料单
         </button>
@@ -185,14 +188,7 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // 检索功能
-        document.getElementById("searchRequisition").addEventListener("input", function () {
-            const query = this.value.toLowerCase();
-            document.querySelectorAll("#requisitionTableBody tr").forEach(row => {
-                row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
-            });
-        });
-        
+
         //监听生产工单选择变化
         const productionOrderSelect = document.getElementById("productionOrderSelect");
         const requisitionForm = document.getElementById("requisitionForm");

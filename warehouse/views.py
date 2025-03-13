@@ -31,7 +31,9 @@ def material_stock_list(request):
     stocks = MaterialStock.objects.select_related('material', 'location').all()
     if query:
         stocks = stocks.filter(
-            material__name__icontains=query
+            Q(material__material_number__icontains=query) |  # 搜索原材料编号
+            Q(material__name__icontains=query) |             # 搜索原材料名称
+            Q(location__name__icontains=query)               # 搜索仓库位置
         )
 
     paginator = Paginator(stocks, 10)  # 每页显示 10 条记录

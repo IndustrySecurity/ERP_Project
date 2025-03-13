@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 def production_order_list(request):
     """显示生产工单列表，支持分页和查询"""
-    query = request.GET.get('q', '').strip() if 'q' in request.GET else None
+    query = request.GET.get('q', '').strip()
 
     # 按查询条件过滤工单，并按计划开工时间倒序排列
     orders = ProductionOrder.objects.select_related('sales_order', 'production_line') \
@@ -203,7 +203,10 @@ def material_requisition_list(request):
     
     # 根据查询条件过滤领料单
     if query:
-        requisitions = MaterialRequisition.objects.filter(production_order__order_number__icontains=query)
+        requisitions = MaterialRequisition.objects.filter(
+            Q(materialrequisition_number__icontains=query) |           # 领料单编号
+            Q(production_order__order_number__icontains=query) # 工单编号
+        )
     else:
         requisitions = MaterialRequisition.objects.all()
     
@@ -416,7 +419,7 @@ from .models import WarehousingReceipt, Product, CustomUser, WarehouseLocation
 
 def product_warehousing_list(request):
     """显示产品入库列表，支持分页和查询"""
-    query = request.GET.get('q', '').strip() if 'q' in request.GET else None
+    query = request.GET.get('q', '').strip()
 
     # 按查询条件过滤入库记录，并按入库单编号的倒序排列
     receipts = WarehousingReceipt.objects.select_related('productionorder', 'location', 'created_by') \

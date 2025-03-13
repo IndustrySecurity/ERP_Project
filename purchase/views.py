@@ -9,12 +9,14 @@ from .models import PurchaseOrder, PurchaseOrderItem, PurchaseReceipt, PurchaseR
 from django.core.paginator import Paginator
 from warehouse.models import WarehouseLocation, MaterialStock
 from master_data.models import Material, Supplier
+from django.db.models import Q
 
 logger = logging.getLogger(__name__)
 
+
 def order_list(request):
     """显示采购订单列表，支持分页和查询"""
-    query = request.GET.get('q', '').strip() if 'q' in request.GET else None
+    query = request.GET.get('q', '').strip()
 
     # 按查询条件过滤订单，并按更新时间倒序排列
     orders = PurchaseOrder.objects.select_related('supplier') \
@@ -155,9 +157,15 @@ def receipt_list(request):
     query = request.GET.get('q', '').strip()
 
     # 根据查询条件筛选入库记录
-    receipts = PurchaseReceipt.objects.select_related('order', 'location').filter(
-        order__order_number__icontains=query
-    ) if query else PurchaseReceipt.objects.select_related('order', 'location').all()
+    if query:
+        receipts = PurchaseReceipt.objects.select_related('order', 'order__supplier', 'location').filter(
+            Q(receipt_number__icontains=query) |  # 入库单编号
+            Q(order__order_number__icontains=query) |  # 订单编号
+            Q(order__supplier__name__icontains=query)  # 供应商名称
+        )
+    else:
+        # 如果没有查询条件，获取所有记录
+        receipts = PurchaseReceipt.objects.select_related('order', 'order__supplier', 'location').all()
 
     # 分页处理
     paginator = Paginator(receipts, 10)  # 每页显示 10 条记录
@@ -256,9 +264,15 @@ def get_order_items(request, order_id):
 def return_list(request):
     """显示采购退库列表，支持分页"""
     query = request.GET.get('q', '').strip()
-    returns = PurchaseReturn.objects.select_related('order', 'material', 'location').filter(
-        order__order_number__icontains=query
-    ) if query else PurchaseReturn.objects.select_related('order', 'material', 'location')
+    # 根据查询条件筛选退库记录
+    if query:
+        returns = PurchaseReturn.objects.select_related('order', 'material', 'location').filter(
+            Q(return_number__icontains=query) |  # 退库单编号，假设字段名为 return_number
+            Q(order__order_number__icontains=query)  # 订单编号
+        )
+    else:
+        # 没有查询条件时，获取所有记录
+        returns = PurchaseReturn.objects.select_related('order', 'material', 'location').all()
 
     paginator = Paginator(returns, 10)  # 每页显示10条记录
     page_number = request.GET.get('page', 1)

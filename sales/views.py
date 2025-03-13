@@ -195,6 +195,15 @@ def delivery_list(request):
     orders = SalesOrder.objects.filter(status__in=['pending', 'partial'])
     locations = WarehouseLocation.objects.all()
 
+    query = request.GET.get('q', '').strip()
+    if query:
+        # 根据出库单编号、订单编号或备注进行筛选
+        deliveries = deliveries.filter(
+            Q(delivery_number__icontains=query) |     
+            Q(order__order_number__icontains=query) |  
+            Q(remarks__icontains=query)                   
+        )
+    
     paginator = Paginator(deliveries, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)

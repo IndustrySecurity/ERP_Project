@@ -50,15 +50,15 @@ def finance_statistics(request):
 
 def payment_records(request):
     """显示付款记录列表，支持分页和查询"""
-    query = request.GET.get('q', '').strip() if 'q' in request.GET else None
+    query = request.GET.get('q', '').strip()
 
     # 获取所有付款记录，并按付款时间倒序排列
     records = PaymentRecord.objects.order_by('-created_at')
   
     if query:
         # 按付款编号、付款时间或其他相关字段进行查询
-        records = records.filter(payment_number__icontains=query) | \
-                  records.filter(payment_date__icontains=query)
+        records = records.filter(record_number__icontains=query) | \
+                  records.filter(purchase_order__order_number__icontains=query)
 
     # 分页处理
     paginator = Paginator(records, 10)  # 每页显示 10 条记录
@@ -198,11 +198,11 @@ def edit_payment_record(request, id):
 
 def receipt_records(request):
     """显示收款记录列表，支持分页和查询"""
-    query = request.GET.get('q', '').strip() if 'q' in request.GET else None
+    query = request.GET.get('q', '').strip()
     records = ReceiptRecord.objects.order_by('-created_at')
 
     if query:
-        records = records.filter(receipt_number__icontains=query) | \
+        records = records.filter(record_number__icontains=query) | \
                   records.filter(sales_order__order_number__icontains=query)
 
     # 分页处理

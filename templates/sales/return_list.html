@@ -6,9 +6,10 @@
 
     <!-- 检索和创建按钮 -->
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <form method="get" class="mb-3">
-            <input type="text" name="q" class="form-control" placeholder="搜索退库单编号、订单编号或备注" value="{{ request.GET.q }}">
-        </form>        
+        <form class="d-flex" method="get" action="">
+            <input type="text" name="q" value="{{ query }}" style="width: 600px;" class="form-control me-2" placeholder="搜索退库单编号、订单编号或备注">
+            <button type="submit" class="btn btn-primary">搜索</button>
+        </form>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#returnModal">
             <i class="fas fa-box"></i> 创建退库
         </button>
@@ -126,8 +127,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // 搜索功能
-
         // 动态加载产品项
         document.getElementById('returnOrder').addEventListener('change', function () {
             const orderId = this.value; // 获取选择的订单 ID

@@ -6,7 +6,10 @@
 
     <!-- 检索和创建按钮 -->
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <input type="text" id="searchDelivery" class="form-control w-50" placeholder="搜索出库单编号、订单编号或备注">
+        <form class="d-flex" method="get" action="">
+            <input type="text" id="searchDelivery" name="q" value="{{ query }}" style="width: 600px;" class="form-control me-2" placeholder="搜索出库单编号、订单编号或备注">
+            <button type="submit" class="btn btn-primary">搜索</button>
+        </form>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#deliveryModal">
             <i class="fas fa-box"></i> 创建出库
         </button>
@@ -133,14 +136,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // 搜索功能
-            // 搜索功能
-        document.getElementById('searchDelivery').addEventListener('input', function () {
-            const query = this.value.toLowerCase();
-            document.querySelectorAll('#deliveryTableBody tr').forEach(row => {
-                row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
-            });
-        });
 
         const orderDropdown = document.getElementById('deliveryOrder');
         const locationDropdown = document.getElementById('deliveryLocation');
