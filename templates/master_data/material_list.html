@@ -43,6 +43,7 @@
                 <td>{{ material.get_customer_supply_display }}</td>
                 <td>{{ material.remark }}</td>
                 <td>
+                    <button class="btn btn-info btn-sm print-barcode-btn" data-code="{{ material.material_number }}" data-name="{{ material.name }}">打印条码</button>
                     <button class="btn btn-warning btn-sm edit-btn" data-id="{{ material.id }}">编辑</button>
                     <button class="btn btn-danger btn-sm delete-btn" data-id="{{ material.id }}">删除</button>
                 </td>
@@ -168,6 +169,27 @@
     </div>
 </div>
 
+<!-- 条码打印模态框 -->
+<div class="modal fade" id="barcodePrintModal" tabindex="-1" aria-labelledby="barcodePrintModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="barcodePrintModalLabel">打印条码</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="barcodeContainer">
+                    <svg id="barcode"></svg>
+                    <p id="barcodeName" class="mt-2"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" id="printBarcodeBtn">打印</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -283,6 +305,135 @@
                 }
             });
         });
+
+        // 加载JsBarcode库
+        function loadScript(url) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = url;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // 初始化条码打印功能
+        async function initBarcodePrinting() {
+            try {
+                await loadScript('https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js');
+                
+                // 打印条码按钮事件处理
+                document.querySelectorAll('.print-barcode-btn').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const code = this.dataset.code;
+                        const name = this.dataset.name;
+                        
+                        // 生成条码
+                        JsBarcode("#barcode", code, {
+                            format: "CODE128",
+                            lineColor: "#000",
+                            width: 2,
+                            height: 100,
+                            displayValue: true
+                        });
+                        
+                        // 存储原始值以便打印时使用
+                        document.querySelector('#barcode').setAttribute('data-original-value', code);
+                        document.querySelector('#barcodePrintModal').setAttribute('data-code', code);
+                        
+                        // 设置名称
+                        document.getElementById('barcodeName').textContent = name;
+                        
+                        // 显示模态框
+                        new bootstrap.Modal(document.getElementById('barcodePrintModal')).show();
+                    });
+                });
+                
+                // 打印按钮事件
+                document.getElementById('printBarcodeBtn').addEventListener('click', function() {
+                    try {
+                        // 获取条码内容和名称
+                        const code = document.querySelector('#barcodePrintModal').getAttribute('data-code');
+                        const name = document.getElementById('barcodeName').textContent;
+                        
+                        // 创建临时iframe用于打印
+                        const iframe = document.createElement('iframe');
+                        iframe.style.position = 'fixed';
+                        iframe.style.right = '0';
+                        iframe.style.bottom = '0';
+                        iframe.style.width = '0';
+                        iframe.style.height = '0';
+                        iframe.style.border = '0';
+                        document.body.appendChild(iframe);
+                        
+                        // 写入iframe内容
+                        const doc = iframe.contentWindow.document;
+                        doc.open();
+                        doc.write('<html><head><title>打印条码</title>');
+                        doc.write('<style>');
+                        doc.write('body { margin: 0; padding: 0; }');
+                        doc.write('.print-page { width: 58mm; height: 40mm; margin: 0; padding: 0; box-sizing: border-box; }');
+                        doc.write('.barcode-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 5mm; }');
+                        doc.write('.barcode-name { margin-top: 5px; font-size: 12px; font-weight: bold; text-align: center; font-family: Arial, sans-serif; }');
+                        doc.write('svg { display: block; max-width: 100%; height: auto; max-height: 25mm; }');
+                        doc.write('@media print { @page { size: 58mm 40mm; margin: 0; } body { margin: 0; } .print-page { page-break-after: always; } }');
+                        doc.write('</style></head><body>');
+                        doc.write('<div class="print-page">');
+                        doc.write('<div class="barcode-container">');
+                        
+                        // 创建SVG元素
+                        const svgElement = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                        svgElement.setAttribute('id', 'printBarcode');
+                        
+                        // 完成DOM结构
+                        doc.write('</div></div>');
+                        doc.write('</body></html>');
+                        doc.close();
+                        
+                        // 添加SVG到容器
+                        const container = doc.querySelector('.barcode-container');
+                        container.insertBefore(svgElement, container.firstChild);
+                        
+                        // 添加名称
+                        const nameDiv = doc.createElement('div');
+                        nameDiv.className = 'barcode-name';
+                        nameDiv.textContent = name;
+                        container.appendChild(nameDiv);
+                        
+                        // 获取原始库引用并生成条码
+                        const JsBarcodeLib = window.JsBarcode;
+                        iframe.contentWindow.JsBarcode = JsBarcodeLib;
+                        iframe.contentWindow.JsBarcode(svgElement, code, {
+                            format: "CODE128",
+                            lineColor: "#000",
+                            width: 1.5, 
+                            height: 50,
+                            displayValue: true,
+                            fontSize: 10,
+                            margin: 5
+                        });
+                        
+                        // 打印
+                        setTimeout(function() {
+                            iframe.contentWindow.focus();
+                            iframe.contentWindow.print();
+                            setTimeout(function() {
+                                document.body.removeChild(iframe);
+                            }, 500);
+                        }, 500);
+                    } catch (err) {
+                        console.error('打印出错:', err);
+                        alert('打印时出现问题，请重试');
+                    }
+                });
+            } catch (error) {
+                console.error('Failed to load JsBarcode:', error);
+                alert('条码功能加载失败，请刷新页面重试');
+            }
+        }
+        
+        // 初始化条码功能
+        initBarcodePrinting();
     });
 </script>
 {% endblock %}
