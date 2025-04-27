@@ -23,7 +23,7 @@ def material_list(request):
         materials = Material.objects.all()
 
     # 分页功能
-    paginator = Paginator(materials, 10)  # 每页显示10条数据
+    paginator = Paginator(materials, 30)  # 每页显示30条数据
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
 
@@ -159,7 +159,7 @@ def product_list(request):
     else:
         products = Product.objects.all()
 
-    paginator = Paginator(products, 10)  # 每页显示 10 条记录
+    paginator = Paginator(products, 30)  # 每页显示 30 条记录
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
 
@@ -251,7 +251,7 @@ def product_list_ajax(request):
     """AJAX请求，获取产品列表"""
     search_query = request.GET.get("search", "").strip()  # 获取搜索关键字
     page = int(request.GET.get("page", 1))  # 当前页码
-    page_size = 10  # 每页显示的产品数量
+    page_size = 20  # 每页显示的产品数量
 
     # 构建查询条件，支持按名称、编号、类别名称检索
     products = Product.objects.filter(
@@ -370,7 +370,7 @@ def recipe_list(request):
     query = request.GET.get('q', '').strip()
     recipes = Recipe.objects.filter(product__name__icontains=query) if query else Recipe.objects.all()
 
-    paginator = Paginator(recipes, 10)  # 每页显示 10 条记录
+    paginator = Paginator(recipes, 30)  # 每页显示 30 条记录
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
 
@@ -393,7 +393,7 @@ def product_list_api(request):
     if product_query:
         products = products.filter(Q(name__icontains=product_query) | Q(product_code__icontains=product_query)).distinct()
 
-    product_paginator = Paginator(products, 10)  # 每页显示 10 条记录
+    product_paginator = Paginator(products, 20)  # 每页显示 10 条记录
     product_page_number = request.GET.get('product_page', 1)
 
     product_page_obj = product_paginator.get_page(product_page_number)
@@ -435,7 +435,7 @@ def material_list_api(request):
             Q(supplier__name__icontains=material_query)
         ).distinct()
 
-    material_paginator = Paginator(materials, 10)  # 每页显示 10 条记录
+    material_paginator = Paginator(materials, 20)  # 每页显示 10 条记录
     material_page_number = request.GET.get('material_page', 1)
 
     material_page_obj = material_paginator.get_page(material_page_number)
@@ -556,7 +556,7 @@ def supplier_list_ajax(request):
     """AJAX请求，获取供应商列表"""
     search_query = request.GET.get('search', '')
     page = int(request.GET.get('page', 1))
-    page_size = 10  # 每页显示的供应商数量
+    page_size = 20  # 每页显示的供应商数量
 
     suppliers = Supplier.objects.filter(name__icontains=search_query)
     total_count = suppliers.count()
@@ -625,7 +625,7 @@ def production_line_list_ajax(request):
     """AJAX请求，获取产线列表"""
     search_query = request.GET.get('search', '')
     page = int(request.GET.get('page', 1))
-    page_size = 10  # 每页显示的产线数量
+    page_size = 20  # 每页显示的产线数量
 
     production_lines = ProductionLine.objects.filter(name__icontains=search_query)
     total_count = production_lines.count()
@@ -718,7 +718,7 @@ def customer_list(request):
     ) if query else Customer.objects.all()
 
     # 添加分页
-    paginator = Paginator(customers, 10)  # 每页显示10个客户
+    paginator = Paginator(customers, 20)  # 每页显示10个客户
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
 

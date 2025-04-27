@@ -58,11 +58,23 @@
                 <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ query }}">上一页</a>
             </li>
             {% endif %}
-            {% for num in page_obj.paginator.page_range %}
-            <li class="page-item {% if num == page_obj.number %}active{% endif %}">
-                <a class="page-link" href="?page={{ num }}&q={{ query }}">{{ num }}</a>
-            </li>
-            {% endfor %}
+            
+            {% with ''|center:page_obj.paginator.num_pages as range %}
+                {% for _ in range %}
+                    {% with forloop.counter as i %}
+                        {% if page_obj.paginator.num_pages <= 10 or i == 1 or i == page_obj.paginator.num_pages or i|add:"-2" <= page_obj.number and i|add:"2" >= page_obj.number %}
+                            <li class="page-item {% if i == page_obj.number %}active{% endif %}">
+                                <a class="page-link" href="?page={{ i }}&q={{ query }}">{{ i }}</a>
+                            </li>
+                        {% elif i == 2 and page_obj.number > 4 or i == page_obj.paginator.num_pages|add:"-1" and page_obj.number < page_obj.paginator.num_pages|add:"-3" %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endwith %}
+                {% endfor %}
+            {% endwith %}
+            
             {% if page_obj.has_next %}
             <li class="page-item">
                 <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ query }}">下一页</a>
@@ -249,12 +261,36 @@
                     paginationList.appendChild(prevPage);
                 }
 
-                // 页码
-                for (let i = 1; i <= data.total_pages; i++) {
-                    const pageItem = document.createElement('li');
-                    pageItem.className = `page-item ${data.number === i ? 'active' : ''}`;
-                    pageItem.innerHTML = `<a class="page-link" href="#" onclick="fetchProducts(${i}); return false;">${i}</a>`;
-                    paginationList.appendChild(pageItem);
+                // 页码 - 优化分页显示
+                const totalPages = data.total_pages;
+                const currentPage = data.number;
+
+                // 辅助函数判断是否显示特定页码
+                function shouldShowPage(pageNum, currentPage, totalPages) {
+                    return totalPages <= 10 || 
+                           pageNum === 1 || 
+                           pageNum === totalPages || 
+                           (pageNum >= currentPage - 2 && pageNum <= currentPage + 2);
+                }
+
+                // 辅助函数判断是否显示省略号
+                function shouldShowEllipsis(pageNum, currentPage, totalPages) {
+                    return (pageNum === 2 && currentPage > 4) || 
+                           (pageNum === totalPages - 1 && currentPage < totalPages - 3);
+                }
+
+                for (let i = 1; i <= totalPages; i++) {
+                    if (shouldShowPage(i, currentPage, totalPages)) {
+                        const pageItem = document.createElement('li');
+                        pageItem.className = `page-item ${currentPage === i ? 'active' : ''}`;
+                        pageItem.innerHTML = `<a class="page-link" href="#" onclick="fetchProducts(${i}); return false;">${i}</a>`;
+                        paginationList.appendChild(pageItem);
+                    } else if (shouldShowEllipsis(i, currentPage, totalPages)) {
+                        const ellipsis = document.createElement('li');
+                        ellipsis.className = 'page-item disabled';
+                        ellipsis.innerHTML = '<span class="page-link">...</span>';
+                        paginationList.appendChild(ellipsis);
+                    }
                 }
 
                 // 下一页
@@ -265,7 +301,6 @@
                     paginationList.appendChild(nextPage);
                 }
 
-                paginationNav.innerHTML = ''; // 清空之前的内容
                 paginationNav.appendChild(paginationList); // 添加新的分页
             })
             .catch(error => {
@@ -327,11 +362,36 @@
                     paginationList.appendChild(prevPage);
                 }
 
-                for (let i = 1; i <= data.total_pages; i++) {
-                    const pageItem = document.createElement('li');
-                    pageItem.className = `page-item ${data.number === i ? 'active' : ''}`;
-                    pageItem.innerHTML = `<a class="page-link" href="#" onclick="fetchMaterials(${i}); return false;">${i}</a>`;
-                    paginationList.appendChild(pageItem);
+                // 页码 - 优化分页显示
+                const totalPages = data.total_pages;
+                const currentPage = data.number;
+
+                // 辅助函数判断是否显示特定页码
+                function shouldShowPage(pageNum, currentPage, totalPages) {
+                    return totalPages <= 10 || 
+                           pageNum === 1 || 
+                           pageNum === totalPages || 
+                           (pageNum >= currentPage - 2 && pageNum <= currentPage + 2);
+                }
+
+                // 辅助函数判断是否显示省略号
+                function shouldShowEllipsis(pageNum, currentPage, totalPages) {
+                    return (pageNum === 2 && currentPage > 4) || 
+                           (pageNum === totalPages - 1 && currentPage < totalPages - 3);
+                }
+
+                for (let i = 1; i <= totalPages; i++) {
+                    if (shouldShowPage(i, currentPage, totalPages)) {
+                        const pageItem = document.createElement('li');
+                        pageItem.className = `page-item ${currentPage === i ? 'active' : ''}`;
+                        pageItem.innerHTML = `<a class="page-link" href="#" onclick="fetchMaterials(${i}); return false;">${i}</a>`;
+                        paginationList.appendChild(pageItem);
+                    } else if (shouldShowEllipsis(i, currentPage, totalPages)) {
+                        const ellipsis = document.createElement('li');
+                        ellipsis.className = 'page-item disabled';
+                        ellipsis.innerHTML = '<span class="page-link">...</span>';
+                        paginationList.appendChild(ellipsis);
+                    }
                 }
 
                 if (data.has_next) {
