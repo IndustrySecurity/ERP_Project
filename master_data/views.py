@@ -6,6 +6,8 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import Material, Product, Recipe, Supplier, Customer, RecipeMaterial, MaterialCategory, ProductCategory, ProductionLine
 from .forms import MaterialForm, ProductForm, RecipeForm, SupplierForm, CustomerForm, ProductionLineForm
 from django.template.loader import render_to_string
+from django.db.utils import IntegrityError
+from datetime import datetime
 
 def material_list(request):
     """
@@ -18,9 +20,9 @@ def material_list(request):
             Q(name__icontains=query) |  # 按原材料名称检索
             Q(material_number__icontains=query) |  # 按料号检索
             Q(category__name__icontains=query)  # 按分类名称检索
-        )
+        ).order_by('material_number')  # 添加排序
     else:
-        materials = Material.objects.all()
+        materials = Material.objects.all().order_by('material_number')  # 添加排序
 
     # 分页功能
     paginator = Paginator(materials, 30)  # 每页显示30条数据
@@ -89,14 +91,35 @@ def material_create(request):
     if request.method == 'POST':
         form = MaterialForm(request.POST)
         if form.is_valid():
-            # 检查是否需要创建新类别
-            new_category_name = request.POST.get('new_category', '').strip()
-            if new_category_name:
-                category, _ = MaterialCategory.objects.get_or_create(name=new_category_name)
-                form.instance.category = category
+            try:
+                # 检查是否需要创建新类别
+                new_category_name = request.POST.get('new_category', '').strip()
+                if new_category_name:
+                    category, _ = MaterialCategory.objects.get_or_create(name=new_category_name)
+                    form.instance.category = category
 
-            form.save()
-            return JsonResponse({'success': True, 'message': '原材料创建成功'})
+                # 尝试保存，如果material_number重复则生成新的
+                try:
+                    form.save()
+                except IntegrityError:
+                    # 如果material_number重复，生成新的
+                    today = datetime.now().strftime('%Y%m%d')
+                    last_material = Material.objects.filter(material_number__startswith=today).order_by('-material_number').first()
+                    
+                    if last_material:
+                        # 获取最后6位数字并加1
+                        last_number = int(last_material.material_number[-6:])
+                        new_number = last_number + 1
+                    else:
+                        new_number = 1
+                    
+                    # 生成新的料号，格式：YYYYMMDD-XXXXXX
+                    form.instance.material_number = f"{today}-{new_number:06d}"
+                    form.save()
+
+                return JsonResponse({'success': True, 'message': '原材料创建成功'})
+            except Exception as e:
+                return JsonResponse({'success': False, 'message': f'创建失败: {str(e)}'})
         else:
             return JsonResponse({'success': False, 'message': form.errors.as_json()})
     return JsonResponse({'success': False, 'message': '仅支持 POST 请求'})
@@ -790,9 +813,6 @@ def customer_delete(request, pk):
     return JsonResponse({'success': False, 'message': 'Invalid request'})
 
 # CRUD 操作
-def material_create(request):
-    return create_item(request, Material, MaterialForm)
-
 def material_update(request, pk):
     return update_item(request, Material, pk, MaterialForm)
 
