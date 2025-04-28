@@ -1,31 +1,37 @@
-<div class="menu bg-light vh-100 p-3">
-    <ul class="nav flex-column">
+<div class="menu-container">
+
+    <ul class="nav flex-column menu-items">
         <!-- 首页 -->
         <li class="nav-item">
-            <a class="nav-link {% if request.path == '/' %}active{% endif %}" 
+            <a class="nav-link menu-link {% if request.path == '/' %}active{% endif %}" 
                href="{% url 'home' %}">
-                <i class="fas fa-home"></i> 首页
+                <i class="menu-icon fas fa-home"></i>
+                <span>首页</span>
             </a>
         </li>
 
         <!-- 用户管理 -->
         <li class="nav-item">
-            <a class="nav-link {% if '/users/' in request.path %}active{% endif %}" 
+            <a class="nav-link menu-link {% if '/users/' in request.path %}active{% endif %}" 
                data-bs-toggle="collapse" href="#userManagementMenu" role="button" aria-expanded="false" aria-controls="userManagementMenu">
-                <i class="fas fa-user-cog"></i> 用户管理
+                <i class="menu-icon fas fa-user-cog"></i>
+                <span>用户管理</span>
+                <i class="fas fa-chevron-right submenu-arrow"></i>
             </a>
-            <div class="collapse {% if '/users/' in request.path %}show{% endif %}" id="userManagementMenu">
-                <ul class="nav flex-column ms-3">
+            <div class="collapse submenu {% if '/users/' in request.path %}show{% endif %}" id="userManagementMenu">
+                <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/users/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/users/' %}active{% endif %}" 
                            href="{% url 'users:user_list' %}">
-                            <i class="fas fa-user"></i> 用户信息
+                            <i class="fas fa-user"></i>
+                            <span>用户信息</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/users/roles/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/users/roles/' %}active{% endif %}" 
                            href="{% url 'users:role_list' %}">
-                            <i class="fas fa-user-shield"></i> 角色管理
+                            <i class="fas fa-user-shield"></i>
+                            <span>角色管理</span>
                         </a>
                     </li>
                 </ul>
@@ -34,46 +40,54 @@
 
         <!-- 主数据管理 -->
         <li class="nav-item">
-            <a class="nav-link {% if '/master_data/' in request.path %}active{% endif %}" 
+            <a class="nav-link menu-link {% if '/master_data/' in request.path %}active{% endif %}" 
             data-bs-toggle="collapse" href="#masterDataMenu" role="button" aria-expanded="false" aria-controls="masterDataMenu">
-                <i class="fas fa-database"></i> 主数据管理
+                <i class="menu-icon fas fa-database"></i>
+                <span>主数据管理</span>
+                <i class="fas fa-chevron-right submenu-arrow"></i>
             </a>
-            <div class="collapse {% if '/master_data/' in request.path %}show{% endif %}" id="masterDataMenu">
-                <ul class="nav flex-column ms-3">
+            <div class="collapse submenu {% if '/master_data/' in request.path %}show{% endif %}" id="masterDataMenu">
+                <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/master_data/materials/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/master_data/materials/' %}active{% endif %}" 
                         href="{% url 'master_data:material_list' %}">
-                            <i class="fas fa-box"></i> 原材料管理
+                            <i class="fas fa-box"></i>
+                            <span>原材料管理</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/master_data/products/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/master_data/products/' %}active{% endif %}" 
                         href="{% url 'master_data:product_list' %}">
-                            <i class="fas fa-tags"></i> 产品管理
+                            <i class="fas fa-tags"></i>
+                            <span>产品管理</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/master_data/recipes/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/master_data/recipes/' %}active{% endif %}" 
                         href="{% url 'master_data:recipe_list' %}">
-                            <i class="fas fa-scroll"></i> 配方管理
+                            <i class="fas fa-scroll"></i>
+                            <span>配方管理</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/master_data/suppliers/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/master_data/suppliers/' %}active{% endif %}" 
                         href="{% url 'master_data:supplier_list' %}">
-                            <i class="fas fa-truck"></i> 供应商管理
+                            <i class="fas fa-truck"></i>
+                            <span>供应商管理</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/master_data/customers/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/master_data/customers/' %}active{% endif %}" 
                         href="{% url 'master_data:customer_list' %}">
-                            <i class="fas fa-users"></i> 客户管理
+                            <i class="fas fa-users"></i>
+                            <span>客户管理</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/master_data/production_lines/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/master_data/production_lines/' %}active{% endif %}" 
                         href="{% url 'master_data:production_line_list' %}">
-                            <i class="fas fa-industry"></i> 产线管理
+                            <i class="fas fa-industry"></i>
+                            <span>产线管理</span>
                         </a>
                     </li>
                 </ul>
@@ -82,28 +96,33 @@
 
         <!-- 采购管理 -->
         <li class="nav-item">
-            <a class="nav-link {% if '/purchase/' in request.path %}active{% endif %}" 
+            <a class="nav-link menu-link {% if '/purchase/' in request.path %}active{% endif %}" 
                data-bs-toggle="collapse" href="#purchaseMenu" role="button" aria-expanded="false" aria-controls="purchaseMenu">
-                <i class="fas fa-shopping-cart"></i> 采购管理
+                <i class="menu-icon fas fa-shopping-cart"></i>
+                <span>采购管理</span>
+                <i class="fas fa-chevron-right submenu-arrow"></i>
             </a>
-            <div class="collapse {% if '/purchase/' in request.path %}show{% endif %}" id="purchaseMenu">
-                <ul class="nav flex-column ms-3">
+            <div class="collapse submenu {% if '/purchase/' in request.path %}show{% endif %}" id="purchaseMenu">
+                <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/purchase/orders/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/purchase/orders/' %}active{% endif %}" 
                            href="{% url 'purchase:order_list' %}">
-                            <i class="fas fa-clipboard-list"></i> 采购订单
+                            <i class="fas fa-clipboard-list"></i>
+                            <span>采购订单</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/purchase/receipts/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/purchase/receipts/' %}active{% endif %}" 
                            href="{% url 'purchase:receipt_list' %}">
-                            <i class="fas fa-box-open"></i> 采购入库
+                            <i class="fas fa-box-open"></i>
+                            <span>采购入库</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/purchase/returns/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/purchase/returns/' %}active{% endif %}" 
                            href="{% url 'purchase:return_list' %}">
-                            <i class="fas fa-undo-alt"></i> 采购退库
+                            <i class="fas fa-undo-alt"></i>
+                            <span>采购退库</span>
                         </a>
                     </li>
                 </ul>
@@ -112,34 +131,40 @@
 
         <!-- 仓库管理 -->
         <li class="nav-item">
-            <a class="nav-link {% if '/warehouse/' in request.path %}active{% endif %}" 
+            <a class="nav-link menu-link {% if '/warehouse/' in request.path %}active{% endif %}" 
                data-bs-toggle="collapse" href="#warehouseMenu" role="button" aria-expanded="false" aria-controls="warehouseMenu">
-                <i class="fas fa-warehouse"></i> 仓库管理
+                <i class="menu-icon fas fa-warehouse"></i>
+                <span>仓库管理</span>
+                <i class="fas fa-chevron-right submenu-arrow"></i>
             </a>
-            <div class="collapse {% if '/warehouse/' in request.path %}show{% endif %}" id="warehouseMenu">
-                <ul class="nav flex-column ms-3">
+            <div class="collapse submenu {% if '/warehouse/' in request.path %}show{% endif %}" id="warehouseMenu">
+                <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/warehouse/locations/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/warehouse/locations/' %}active{% endif %}" 
                            href="{% url 'warehouse:warehouse_location_list' %}">
-                            <i class="fas fa-map-marker-alt"></i> 仓库位置
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>仓库位置</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/warehouse/material_stock/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/warehouse/material_stock/' %}active{% endif %}" 
                            href="{% url 'warehouse:material_stock_list' %}">
-                            <i class="fas fa-cubes"></i> 原材料仓
+                            <i class="fas fa-cubes"></i>
+                            <span>原材料仓</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/warehouse/product_stock/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/warehouse/product_stock/' %}active{% endif %}" 
                            href="{% url 'warehouse:product_stock_list' %}">
-                            <i class="fas fa-boxes"></i> 成品仓
+                            <i class="fas fa-boxes"></i>
+                            <span>成品仓</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/warehouse/inventory_check/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/warehouse/inventory_check/' %}active{% endif %}" 
                            href="{% url 'warehouse:inventory_check_list' %}">
-                            <i class="fas fa-clipboard-check"></i> 库存盘点
+                            <i class="fas fa-clipboard-check"></i>
+                            <span>库存盘点</span>
                         </a>
                     </li>
                 </ul>
@@ -148,66 +173,75 @@
         
         <!--生产管理-->
         <li class="nav-item">
-            <a class="nav-link {% if '/production/' in request.path %}active{% endif %}" 
+            <a class="nav-link menu-link {% if '/production/' in request.path %}active{% endif %}" 
                data-bs-toggle="collapse" href="#productionMenu" role="button" aria-expanded="false" aria-controls="productionMenu">
-                <i class="fas fa-cogs"></i> 生产管理
+                <i class="menu-icon fas fa-cogs"></i>
+                <span>生产管理</span>
+                <i class="fas fa-chevron-right submenu-arrow"></i>
             </a>
-            <div class="collapse {% if '/production/' in request.path %}show{% endif %}" id="productionMenu">
-                <ul class="nav flex-column ms-3">
+            <div class="collapse submenu {% if '/production/' in request.path %}show{% endif %}" id="productionMenu">
+                <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/production/plans/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/production/plans/' %}active{% endif %}" 
                            href="{% url 'production:production_plan' %}">
-                            <i class="fas fa-calendar-alt"></i> 生产计划
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>生产计划</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/production/orders/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/production/orders/' %}active{% endif %}" 
                            href="{% url 'production:production_order_list' %}">
-                            <i class="fas fa-tasks"></i> 生产工单
+                            <i class="fas fa-tasks"></i>
+                            <span>生产工单</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/production/requisitions/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/production/requisitions/' %}active{% endif %}" 
                            href="{% url 'production:material_requisition_list' %}"> 
-                            <i class="fas fa-hand-paper"></i> 生产领料
+                            <i class="fas fa-hand-paper"></i>
+                            <span>生产领料</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/production/warehousing/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/production/warehousing/' %}active{% endif %}" 
                            href="{% url 'production:product_warehousing_list' %}">
-                            <i class="fas fa-box"></i> 生产入库
+                            <i class="fas fa-box"></i>
+                            <span>生产入库</span>
                         </a>
                     </li>
                 </ul>
             </div>
         </li>
          
-        
-
         <!-- 销售管理 -->
         <li class="nav-item">
-            <a class="nav-link {% if '/sales/' in request.path %}active{% endif %}" 
+            <a class="nav-link menu-link {% if '/sales/' in request.path %}active{% endif %}" 
                data-bs-toggle="collapse" href="#salesMenu" role="button" aria-expanded="false" aria-controls="salesMenu">
-                <i class="fas fa-shopping-bag"></i> 销售管理
+                <i class="menu-icon fas fa-shopping-bag"></i>
+                <span>销售管理</span>
+                <i class="fas fa-chevron-right submenu-arrow"></i>
             </a>
-            <div class="collapse {% if '/sales/' in request.path %}show{% endif %}" id="salesMenu">
-                <ul class="nav flex-column ms-3">
+            <div class="collapse submenu {% if '/sales/' in request.path %}show{% endif %}" id="salesMenu">
+                <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/sales/orders/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/sales/orders/' %}active{% endif %}" 
                            href="{% url 'sales:order_list' %}">
-                            <i class="fas fa-receipt"></i> 销售订单
+                            <i class="fas fa-receipt"></i>
+                            <span>销售订单</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/sales/deliveries/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/sales/deliveries/' %}active{% endif %}" 
                            href="{% url 'sales:delivery_list' %}">
-                            <i class="fas fa-truck-loading"></i> 销售出库
+                            <i class="fas fa-truck-loading"></i>
+                            <span>销售出库</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/sales/returns/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/sales/returns/' %}active{% endif %}" 
                            href="{% url 'sales:return_list' %}">
-                            <i class="fas fa-undo"></i> 销售退库
+                            <i class="fas fa-undo"></i>
+                            <span>销售退库</span>
                         </a>
                     </li>
                 </ul>
@@ -216,34 +250,195 @@
 
         <!-- 财务管理 -->
         <li class="nav-item">
-            <a class="nav-link {% if '/finance/' in request.path %}active{% endif %}" 
+            <a class="nav-link menu-link {% if '/finance/' in request.path %}active{% endif %}" 
             data-bs-toggle="collapse" href="#financeMenu" role="button" aria-expanded="false" aria-controls="financeMenu">
-                <i class="fas fa-coins"></i> 财务管理
+                <i class="menu-icon fas fa-coins"></i>
+                <span>财务管理</span>
+                <i class="fas fa-chevron-right submenu-arrow"></i>
             </a>
-            <div class="collapse {% if '/finance/' in request.path %}show{% endif %}" id="financeMenu">
-                <ul class="nav flex-column ms-3">
+            <div class="collapse submenu {% if '/finance/' in request.path %}show{% endif %}" id="financeMenu">
+                <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/finance/statistics/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/finance/statistics/' %}active{% endif %}" 
                         href="{% url 'finance:statistics' %}">
-                            <i class="fas fa-chart-line"></i> 财务统计
+                            <i class="fas fa-chart-line"></i>
+                            <span>财务统计</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/finance/payment_records/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/finance/payment_records/' %}active{% endif %}" 
                         href="{% url 'finance:payment_records' %}">
-                            <i class="fas fa-money-check-alt"></i> 付款记录
+                            <i class="fas fa-money-check-alt"></i>
+                            <span>付款记录</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/finance/receipt_records/' %}active{% endif %}" 
+                        <a class="nav-link submenu-link {% if request.path == '/finance/receipt_records/' %}active{% endif %}" 
                         href="{% url 'finance:receipt_records' %}">
-                            <i class="fas fa-file-invoice-dollar"></i> 收款记录
+                            <i class="fas fa-file-invoice-dollar"></i>
+                            <span>收款记录</span>
                         </a>
                     </li>
                 </ul>
             </div>
         </li>
-
-        
     </ul>
 </div>
+
+<style>
+    .menu-container {
+        padding: 10px 0;
+        height: 100%;
+    }
+    
+    .user-profile {
+        position: relative;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .avatar-circle {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 24px;
+        margin-bottom: 10px;
+        box-shadow: 0 4px 10px rgba(63, 81, 181, 0.2);
+    }
+    
+    .menu-items {
+        margin-top: 15px;
+    }
+    
+    .menu-link {
+        display: flex;
+        align-items: center;
+        padding: 10px 15px;
+        color: var(--text-color);
+        font-weight: 500;
+        border-radius: 8px;
+        margin: 2px 10px;
+        transition: all 0.3s;
+    }
+    
+    .menu-link:hover {
+        background-color: var(--menu-hover);
+        color: var(--primary-color);
+    }
+    
+    .menu-link.active {
+        background-color: var(--menu-active);
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+    
+    .menu-icon {
+        width: 24px;
+        text-align: center;
+        margin-right: 10px;
+        font-size: 1.1rem;
+    }
+    
+    .submenu {
+        padding-left: 24px;
+        margin-left: 10px;
+        border-left: 1px dashed rgba(0,0,0,0.1);
+    }
+    
+    .submenu-link {
+        padding: 8px 15px;
+        font-size: 0.9rem;
+        color: var(--text-color);
+        opacity: 0.85;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        transition: all 0.2s;
+    }
+    
+    .submenu-link i {
+        width: 20px;
+        text-align: center;
+        margin-right: 8px;
+        font-size: 0.9rem;
+    }
+    
+    .submenu-link:hover {
+        background-color: var(--menu-hover);
+        color: var(--primary-color);
+        opacity: 1;
+    }
+    
+    .submenu-link.active {
+        background-color: var(--menu-active);
+        color: var(--primary-color);
+        font-weight: 500;
+        opacity: 1;
+    }
+    
+    .submenu-arrow {
+        margin-left: auto;
+        font-size: 0.8rem;
+        transition: transform 0.3s;
+    }
+    
+    .menu-link[aria-expanded="true"] .submenu-arrow {
+        transform: rotate(90deg);
+    }
+    
+    /* 响应式调整 */
+    @media (max-width: 992px) {
+        .menu-link span,
+        .submenu-link span,
+        .user-profile p,
+        .user-profile h6 {
+            display: none;
+        }
+        
+        .avatar-circle {
+            width: 40px;
+            height: 40px;
+            font-size: 18px;
+        }
+        
+        .menu-link,
+        .submenu-link {
+            padding: 8px;
+            justify-content: center;
+        }
+        
+        .menu-icon,
+        .submenu-link i {
+            margin-right: 0;
+        }
+        
+        .submenu-arrow {
+            display: none;
+        }
+        
+        .submenu {
+            border-left: none;
+            padding-left: 0;
+        }
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 添加菜单项悬停效果
+        const menuLinks = document.querySelectorAll('.menu-link');
+        menuLinks.forEach(link => {
+            link.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateX(3px)';
+            });
+            
+            link.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateX(0)';
+            });
+        });
+    });
+</script>

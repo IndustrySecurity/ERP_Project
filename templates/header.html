@@ -1,7 +1,10 @@
-<header class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top shadow">
+<header class="navbar navbar-expand-lg navbar-dark shadow-sm sticky-top">
     <div class="container-fluid">
         <!-- 品牌与切换按钮 -->
-        <a class="navbar-brand" href="#">苏州青岑科技ERP系统</a>
+        <a class="navbar-brand d-flex align-items-center" href="/">
+            <i class="fas fa-layer-group me-2"></i>
+            <span>苏州青岑科技ERP系统</span>
+        </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -11,29 +14,81 @@
             <ul class="navbar-nav ms-auto">
                 {% if user.is_authenticated %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'logout' %}">登出</a>
+                    <span class="nav-link text-light me-3">
+                        <i class="fas fa-user-circle me-1"></i>欢迎, {{ user.username }}
+                    </span>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link disabled" href="#">欢迎, {{ user.username }}</a>
+                    <a class="nav-link btn btn-outline-light btn-sm rounded-pill px-3" href="{% url 'logout' %}">
+                        <i class="fas fa-sign-out-alt me-1"></i>登出
+                    </a>
                 </li>
                 {% else %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'login' %}">登录</a>
+                    <a class="nav-link btn btn-outline-light btn-sm rounded-pill px-3" href="{% url 'login' %}">
+                        <i class="fas fa-sign-in-alt me-1"></i>登录
+                    </a>
                 </li>
                 {% endif %}
             </ul>
         </div>
 
         <!-- 动态时间显示 -->
-        <span class="text-light ms-3" id="current-time"></span>
+        <div class="ms-3 d-flex align-items-center">
+            <i class="far fa-clock me-2"></i>
+            <span class="text-light" id="current-time"></span>
+        </div>
     </div>
 </header>
 
+<style>
+    .navbar {
+        background-color: var(--primary-color);
+    }
+    
+    .navbar-brand {
+        font-weight: 500;
+        letter-spacing: 0.5px;
+    }
+    
+    .navbar-brand i {
+        font-size: 1.3rem;
+    }
+    
+    .nav-link {
+        transition: all 0.2s;
+    }
+    
+    .nav-link:hover {
+        transform: translateY(-1px);
+    }
+    
+    #current-time {
+        font-family: 'Roboto Mono', monospace;
+        font-weight: 500;
+    }
+</style>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        setInterval(function () {
+        function updateClock() {
             const now = new Date();
-            document.getElementById('current-time').textContent = now.toLocaleTimeString();
-        }, 1000);
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            };
+            const timeString = now.toLocaleDateString('zh-CN', options);
+            document.getElementById('current-time').textContent = timeString;
+        }
+        
+        // 初始更新一次
+        updateClock();
+        // 每秒更新一次
+        setInterval(updateClock, 1000);
     });
 </script>

@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from users.forms import CustomAuthenticationForm  # Import the custom form
+from django.contrib.auth.decorators import login_required
+from master_data.models import Material, Product, Supplier, Customer
 
 def login_view(request):
     if request.method == 'POST':
@@ -23,5 +25,21 @@ def logout_view(request):
     logout(request)
     return redirect('login')
 
-def home_view(request):
-    return render(request, 'home.html')
+@login_required
+def home(request):
+    # 获取各种类型的数据计数
+    materials_count = Material.objects.count()
+    products_count = Product.objects.count()
+    suppliers_count = Supplier.objects.count()
+    customers_count = Customer.objects.count()
+    
+    context = {
+        'materials_count': materials_count,
+        'products_count': products_count,
+        'suppliers_count': suppliers_count,
+        'customers_count': customers_count,
+    }
+    return render(request, 'home.html', context)
+
+def login_redirect(request):
+    return redirect('login')

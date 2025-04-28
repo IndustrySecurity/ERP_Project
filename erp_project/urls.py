@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import include, path
-from .views import login_view, home_view, logout_view
+from .views import login_view, home, logout_view, login_redirect
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 
@@ -16,6 +16,6 @@ urlpatterns = [
     path('production/', include('production.urls', namespace='production')),
     path('warehouse/', include('warehouse.urls', namespace='warehouse')),
     path('finance/', include('finance.urls', namespace='finance')),
-    path('home/', login_required(home_view), name='home'),
-    path('', lambda request: redirect('login')),
+    path('home/', home, name='home'),
+    path('', login_redirect),
 ]
